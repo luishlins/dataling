@@ -1,0 +1,4 @@
+term,domain,subdomain,situation,priority_weight,is_multiword
+receive,vocabulary,academic,formal email,1.0,false
+pronunciation,phonology,basics,speaking practice,0.8,false
+vocabulary,general,,daily conversation,0.5,false
