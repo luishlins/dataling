@@ -17,7 +17,7 @@ class TestSession(db.Model):
 
     # --- Relacionamentos ---
     student = db.relationship(
-        "Student", backref=db.backref("test_sessions", lazy="dynamic")
+        "Student", backref=db.backref("test_sessions", lazy="dynamic", cascade="all, delete-orphan")
     )
 
     def to_dict(self) -> dict:

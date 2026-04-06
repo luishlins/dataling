@@ -5,3 +5,5 @@ from .student_skill_state import StudentSkillState
 from .test_item import TestItem
 from .test_session import TestSession
 from .advised_vocab import AdvisedVocabItem
+from models.checklist_item import ChecklistItem
+from models.checklist_response import ChecklistResponse

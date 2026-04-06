@@ -398,6 +398,367 @@ function injectStyles() {
     .tst-add-msg--error   { background: #FEF2F2; color: #B91C1C; display: block; }
     .tst-add-msg--success { background: #F0FDF4; color: #166534; display: block; }
 
+    /* ── Checklist Session ───────────────────────────────── */
+    .checklist-session {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .checklist-progress {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      background: var(--border, #E2DDD6);
+      border-radius: 4px;
+      margin-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .checklist-progress-bar {
+      height: 100%;
+      background: var(--accent, #2D5BE3);
+      transition: width 0.3s ease;
+    }
+
+    .checklist-counter {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-primary, #1A1714);
+    }
+
+    .checklist-item {
+      margin-bottom: 40px;
+    }
+
+    .checklist-item-text {
+      font-size: 48px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text-primary, #1A1714);
+      margin-bottom: 20px;
+      word-wrap: break-word;
+    }
+
+    .checklist-item-meta {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .checklist-category, .checklist-dimension {
+      font-size: 0.875rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .checklist-category {
+      background: var(--bg-secondary, #F0EDE6);
+      color: var(--text-secondary, #6B6560);
+    }
+
+    .checklist-dimension {
+      background: var(--accent-light, #EBF0FB);
+      color: var(--accent, #2D5BE3);
+    }
+
+    .checklist-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+    }
+
+    .checklist-btn {
+      padding: 20px 40px;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.25rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 160px;
+    }
+
+    .checklist-btn:active {
+      transform: scale(0.95);
+    }
+
+    .checklist-btn--yes {
+      background: #10B981;
+      color: white;
+    }
+
+    .checklist-btn--yes:hover {
+      background: #059669;
+    }
+
+    .checklist-btn--no {
+      background: #EF4444;
+      color: white;
+    }
+
+    .checklist-btn--no:hover {
+      background: #DC2626;
+    }
+
+    .checklist-btn--primary {
+      background: var(--accent, #2D5BE3);
+      color: white;
+      padding: 15px 30px;
+      font-size: 1.1rem;
+    }
+
+    .checklist-btn--primary:hover {
+      background: #1E40AF;
+    }
+
+    .checklist-summary {
+      text-align: center;
+    }
+
+    .checklist-summary h2 {
+      font-size: 2rem;
+      margin-bottom: 30px;
+      color: var(--text-primary, #1A1714);
+    }
+
+    .checklist-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .checklist-summary-item {
+      background: var(--bg, #F7F5F0);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border, #E2DDD6);
+    }
+
+    .checklist-summary-dimension {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary, #1A1714);
+      margin-bottom: 10px;
+    }
+
+    .checklist-summary-stats {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .checklist-summary-percentage {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent, #2D5BE3);
+    }
+
+    .checklist-summary-count {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6B6560);
+    }
+
+    .checklist-actions {
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── Pronunciation Session ───────────────────────────── */
+    .pronunciation-session {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .pronunciation-item {
+      font-size: 48px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 60px;
+      color: #1A1714;
+      line-height: 1.2;
+      word-wrap: break-word;
+      max-width: 90vw;
+    }
+
+    .pronunciation-buttons {
+      display: flex;
+      gap: 20px;
+      width: 90vw;
+      max-width: 800px;
+    }
+
+    .pronunciation-btn {
+      flex: 1;
+      width: 45%;
+      padding: 25px;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pronunciation-btn:active {
+      transform: scale(0.95);
+    }
+
+    .pronunciation-btn--correct {
+      background: #10B981;
+      color: white;
+    }
+
+    .pronunciation-btn--correct:hover {
+      background: #059669;
+    }
+
+    .pronunciation-btn--incorrect {
+      background: #EF4444;
+      color: white;
+    }
+
+    .pronunciation-btn--incorrect:hover {
+      background: #DC2626;
+    }
+
+    .pronunciation-summary {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .pronunciation-summary h2 {
+      font-size: 2.5rem;
+      margin-bottom: 40px;
+      color: #1A1714;
+    }
+
+    .pronunciation-results {
+      display: flex;
+      gap: 40px;
+      width: 90vw;
+      max-width: 1000px;
+    }
+
+    .pronunciation-column {
+      flex: 1;
+      background: #F7F5F0;
+      border-radius: 16px;
+      padding: 30px;
+      border: 2px solid #E2DDD6;
+    }
+
+    .pronunciation-column h3 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #1A1714;
+    }
+
+    .pronunciation-column--correct h3 {
+      color: #10B981;
+    }
+
+    .pronunciation-column--incorrect h3 {
+      color: #EF4444;
+    }
+
+    .pronunciation-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pronunciation-item-result {
+      font-size: 24px;
+      padding: 12px 20px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #E2DDD6;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .pronunciation-actions {
+      margin-top: 40px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .pronunciation-btn--primary {
+      background: #2D5BE3;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .pronunciation-btn--primary:hover {
+      background: #1E40AF;
+    }
+
+    @media (max-width: 768px) {
+      .pronunciation-item {
+        font-size: 36px;
+        margin-bottom: 40px;
+      }
+
+      .pronunciation-buttons {
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .pronunciation-btn {
+        width: 100%;
+      }
+
+      .pronunciation-results {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .pronunciation-column {
+        padding: 20px;
+      }
+
+      .pronunciation-item-result {
+        font-size: 20px;
+      }
+    }
+
     /* ── Animations ──────────────────────────────────────── */
     @keyframes tstFade    { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes tstFadeIn  { from { opacity:0; } to { opacity:1; } }
@@ -845,11 +1206,310 @@ window.TST = {
       btn.disabled = false; btn.textContent = "Create Session";
     }
   },
-};
+
+  showPronunciationSession(sessionId, items) {
+    showPronunciationSession(sessionId, items);
+  },
+
+  handleChecklistResponse(index, response) {
+    const state = window._checklistState;
+    const item = state.recommended[index];
+    
+    state.responses.push({
+      item_id: item.id,
+      response: response,
+      timestamp: Date.now()
+    });
+    
+    state.currentIndex++;
+    
+    // Avançar automaticamente após 300ms
+    setTimeout(() => {
+      showChecklistNextItem();
+    }, 300);
+  },
+
+  async submitChecklistResults(sessionId) {
+    try {
+      const state = window._checklistState;
+      const results = {
+        session_id: sessionId,
+        responses: state.responses,
+        duration: Date.now() - state.startTime
+      };
+
+      await apiFetch('/testing/checklist/results', {
+        method: 'POST',
+        body: JSON.stringify(results)
+      });
+
+      alert("Resultados enviados com sucesso!");
+      render(); // Voltar para a tela inicial
+
+    } catch (error) {
+      alert(`Erro ao enviar resultados: ${error.message}`);
+    }
+  },
+
+  handlePronunciationResponse(index, correct) {
+    const state = window._pronunciationState;
+    const item = state.items[index];
+    
+    state.responses.push({
+      item_id: item.id,
+      correct: correct,
+      timestamp: Date.now()
+    });
+    
+    state.currentIndex++;
+    
+    // Avançar automaticamente após 300ms
+    setTimeout(() => {
+      showPronunciationNextItem();
+    }, 300);
+  },
+
+  async submitPronunciationResults(sessionId) {
+    try {
+      const state = window._pronunciationState;
+      const results = {
+        session_id: sessionId,
+        responses: state.responses,
+        duration: Date.now() - state.startTime
+      };
+
+      await apiFetch('/testing/pronunciation/results', {
+        method: 'POST',
+        body: JSON.stringify(results)
+      });
+
+      alert("Resultados enviados com sucesso!");
+      render(); // Voltar para a tela inicial
+
+    } catch (error) {
+      alert(`Erro ao enviar resultados: ${error.message}`);
+    }
+  },
 
 // ─────────────────────────────────────────────────────────────
 // Module entry point
 // ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// Checklist Session
+// ─────────────────────────────────────────────────────────────
+
+async function showChecklistSession(sessionId, studentId) {
+  try {
+    // 1. Buscar itens recomendados
+    const recommended = await apiFetch(`/testing/checklist/recommended/${studentId}`);
+    if (!recommended.length) {
+      alert("Nenhum item recomendado encontrado para este aluno.");
+      return;
+    }
+
+    // Estado da sessão
+    window._checklistState = {
+      recommended,
+      responses: [],
+      startTime: Date.now(),
+      currentIndex: 0,
+      sessionId
+    };
+
+    // Iniciar primeira pergunta
+    showChecklistNextItem();
+
+  } catch (error) {
+    alert(`Erro ao carregar checklist: ${error.message}`);
+    render();
+  }
+}
+
+function showChecklistNextItem() {
+  const { recommended, currentIndex } = window._checklistState;
+  
+  if (currentIndex >= recommended.length) {
+    showChecklistSummary();
+    return;
+  }
+
+  const item = recommended[currentIndex];
+  _container.innerHTML = `
+    <div class="checklist-session">
+      <div class="checklist-progress">
+        <div class="checklist-progress-bar" style="width: ${(currentIndex / recommended.length) * 100}%"></div>
+        <span class="checklist-counter">${currentIndex + 1} / ${recommended.length}</span>
+      </div>
+
+      <div class="checklist-item">
+        <div class="checklist-item-text">${item.item_text}</div>
+        <div class="checklist-item-meta">
+          <span class="checklist-category">${item.category}</span>
+          <span class="checklist-dimension">${item.dimension}</span>
+        </div>
+      </div>
+
+      <div class="checklist-buttons">
+        <button class="checklist-btn checklist-btn--no" onclick="TST.handleChecklistResponse(${currentIndex}, false)">
+          ❌ Não
+        </button>
+        <button class="checklist-btn checklist-btn--yes" onclick="TST.handleChecklistResponse(${currentIndex}, true)">
+          ✅ Sim
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function showChecklistSummary() {
+  const { responses, recommended, sessionId } = window._checklistState;
+  
+  // Calcular estatísticas por dimensão
+  const stats = {};
+  responses.forEach(resp => {
+    const item = recommended.find(r => r.id === resp.item_id);
+    if (!stats[item.dimension]) {
+      stats[item.dimension] = { total: 0, yes: 0 };
+    }
+    stats[item.dimension].total++;
+    if (resp.response) stats[item.dimension].yes++;
+  });
+
+  const summaryHTML = Object.entries(stats).map(([dimension, data]) => {
+    const percentage = Math.round((data.yes / data.total) * 100);
+    return `
+      <div class="checklist-summary-item">
+        <div class="checklist-summary-dimension">${dimension}</div>
+        <div class="checklist-summary-stats">
+          <span class="checklist-summary-percentage">${percentage}%</span>
+          <span class="checklist-summary-count">(${data.yes}/${data.total})</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  _container.innerHTML = `
+    <div class="checklist-session">
+      <div class="checklist-summary">
+        <h2>Resumo da Sessão</h2>
+        <div class="checklist-summary-grid">
+          ${summaryHTML}
+        </div>
+        <div class="checklist-actions">
+          <button class="checklist-btn checklist-btn--primary" onclick="TST.submitChecklistResults(${sessionId})">
+            Enviar Resultados
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pronunciation Session
+// ─────────────────────────────────────────────────────────────
+
+function showPronunciationSession(sessionId, items) {
+  if (!items || !items.length) {
+    alert("Nenhum item de pronúncia fornecido.");
+    return;
+  }
+
+  // Estado da sessão
+  window._pronunciationState = {
+    items,
+    responses: [],
+    startTime: Date.now(),
+    currentIndex: 0,
+    sessionId
+  };
+
+  // Adicionar event listeners para atalhos de teclado
+  document.addEventListener('keydown', handlePronunciationKeydown);
+
+  // Iniciar primeiro item
+  showPronunciationNextItem();
+}
+
+function showPronunciationNextItem() {
+  const { items, currentIndex } = window._pronunciationState;
+  
+  if (currentIndex >= items.length) {
+    showPronunciationSummary();
+    return;
+  }
+
+  const item = items[currentIndex];
+  document.body.innerHTML = `
+    <div class="pronunciation-session">
+      <div class="pronunciation-item">${item.item_text}</div>
+      <div class="pronunciation-buttons">
+        <button class="pronunciation-btn pronunciation-btn--correct" onclick="TST.handlePronunciationResponse(${currentIndex}, true)">
+          Correta
+        </button>
+        <button class="pronunciation-btn pronunciation-btn--incorrect" onclick="TST.handlePronunciationResponse(${currentIndex}, false)">
+          Incorreta
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function showPronunciationSummary() {
+  const { responses, items, sessionId } = window._pronunciationState;
+  
+  // Separar itens corretos e incorretos
+  const correctItems = responses
+    .filter(r => r.correct)
+    .map(r => items.find(i => i.id === r.item_id));
+    
+  const incorrectItems = responses
+    .filter(r => !r.correct)
+    .map(r => items.find(i => i.id === r.item_id));
+
+  // Remover event listener de teclado
+  document.removeEventListener('keydown', handlePronunciationKeydown);
+
+  document.body.innerHTML = `
+    <div class="pronunciation-summary">
+      <h2>Resumo da Sessão de Pronúncia</h2>
+      <div class="pronunciation-results">
+        <div class="pronunciation-column pronunciation-column--correct">
+          <h3>Corretas (${correctItems.length})</h3>
+          <div class="pronunciation-items-list">
+            ${correctItems.map(item => `<div class="pronunciation-item-result">${item.item_text}</div>`).join('')}
+          </div>
+        </div>
+        <div class="pronunciation-column pronunciation-column--incorrect">
+          <h3>Incorretas (${incorrectItems.length})</h3>
+          <div class="pronunciation-items-list">
+            ${incorrectItems.map(item => `<div class="pronunciation-item-result">${item.item_text}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="pronunciation-actions">
+        <button class="pronunciation-btn--primary" onclick="TST.submitPronunciationResults(${sessionId})">
+          Enviar Resultados
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function handlePronunciationKeydown(event) {
+  if (!window._pronunciationState) return;
+  
+  const { currentIndex } = window._pronunciationState;
+  
+  if (event.key.toLowerCase() === 'c') {
+    event.preventDefault();
+    TST.handlePronunciationResponse(currentIndex, true);
+  } else if (event.key.toLowerCase() === 'e') {
+    event.preventDefault();
+    TST.handlePronunciationResponse(currentIndex, false);
+  }
+}
 
 export default async function init(container, actionsBar) {
   _container       = container;

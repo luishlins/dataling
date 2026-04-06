@@ -38,7 +38,7 @@ class GrammarFlag(db.Model):
         lazy="dynamic",
     )
 
-    student = db.relationship("Student", backref=db.backref("grammar_flags", lazy="dynamic"))
+    student = db.relationship("Student", backref=db.backref("grammar_flags", lazy="dynamic", cascade="all, delete-orphan"))
 
     def to_dict(self) -> dict:
         return {

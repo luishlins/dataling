@@ -473,3 +473,256 @@ def import_items_csv():
         "imported": imported,
         "errors":   errors,
     }), 200
+
+
+# ─────────────────────────────────────────────────────────────
+# Checklist routes
+# ─────────────────────────────────────────────────────────────
+
+from models.checklist_item import ChecklistItem
+from models.checklist_response import ChecklistResponse
+
+# Dimensions with highest relevance for A2-B1 learners
+# Used by the /recommended route until adaptive logic is implemented in Phase 3
+_A2_B1_PRIORITY_DIMENSIONS = {
+    "Fluency",
+    "GrammarAccuracy",
+    "LexicalRange",
+    "PronunciationSound",
+    "Coherence",
+}
+
+
+# ── GET /testing/checklist ────────────────────────────────────
+
+@testing_bp.route("/testing/checklist", methods=["GET"])
+def list_checklist():
+    """
+    Lista todos os 72 itens do checklist de fala, agrupados por dimensão.
+    Suporta filtro opcional: ?dimension=Fluency
+    """
+    try:
+        query = ChecklistItem.query
+
+        dimension = request.args.get("dimension")
+        if dimension:
+            query = query.filter(ChecklistItem.dimension == dimension)
+
+        items = query.order_by(ChecklistItem.dimension, ChecklistItem.check_id).all()
+        return jsonify([i.to_dict() for i in items]), 200
+
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ── GET /testing/checklist/recommended/<student_id> ───────────
+
+@testing_bp.route("/testing/checklist/recommended/<int:student_id>", methods=["GET"])
+def recommended_checklist(student_id):
+    """
+    Retorna subconjunto recomendado do checklist baseado no nível estimado do aluno.
+
+    Fase 2 (atual): retorna todos os itens das dimensões de maior relevância
+    para níveis A2-B1, filtrados também por typical_cefr_floor <= nível do aluno.
+
+    Fase 3: lógica adaptativa completa baseada em EvidenceEvents acumulados.
+    """
+    student = db.session.get(Student, student_id)
+    if student is None:
+        return jsonify({"error": f"Student com id {student_id} não encontrado."}), 404
+
+    try:
+        # Base: dimensões prioritárias para A2-B1
+        query = ChecklistItem.query.filter(
+            ChecklistItem.dimension.in_(_A2_B1_PRIORITY_DIMENSIONS)
+        )
+
+        # Se o aluno tem target_level definido, incluir também itens
+        # das outras dimensões cujo floor seja <= ao nível do aluno
+        target = student.target_level
+        if target:
+            cefr_order = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+            student_rank = cefr_order.get(target.upper(), 3)
+
+            # Include all items where typical_cefr_floor is null or <= student level
+            from sqlalchemy import or_
+            all_items = ChecklistItem.query.filter(
+                or_(
+                    ChecklistItem.typical_cefr_floor.is_(None),
+                    ChecklistItem.typical_cefr_floor.in_([
+                        lvl for lvl, rank in cefr_order.items()
+                        if rank <= student_rank
+                    ])
+                )
+            ).order_by(ChecklistItem.dimension, ChecklistItem.check_id).all()
+        else:
+            # No target level — return priority dimensions only
+            all_items = query.order_by(
+                ChecklistItem.dimension, ChecklistItem.check_id
+            ).all()
+
+        return jsonify({
+            "student_id":    student_id,
+            "target_level":  target,
+            "total":         len(all_items),
+            "note":          "Phase 2 recommendation — adaptive logic coming in Phase 3.",
+            "items":         [i.to_dict() for i in all_items],
+        }), 200
+
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ── POST /testing/sessions/<session_id>/checklist ────────────
+
+@testing_bp.route("/testing/sessions/<int:session_id>/checklist", methods=["POST"])
+def submit_checklist(session_id):
+    """
+    Recebe lista de respostas yes/no e salva no banco.
+    Calcula score por dimensão e score global.
+
+    Payload:
+        {
+            "responses": [
+                {"check_id": "FL_001", "response": true},
+                {"check_id": "FL_002", "response": false},
+                ...
+            ]
+        }
+
+    Resposta:
+        {
+            "session_id": 1,
+            "saved": 12,
+            "skipped": 2,          # already answered in this session
+            "errors": [...],
+            "scores": {
+                "Fluency": {"yes": 8, "total": 10, "pct": 80.0},
+                ...
+                "overall": {"yes": 58, "total": 72, "pct": 80.6}
+            }
+        }
+    """
+    session = db.session.get(TestSession, session_id)
+    if session is None:
+        return jsonify({"error": f"Sessão com id {session_id} não encontrada."}), 404
+
+    data = request.get_json(silent=True)
+    if not data or "responses" not in data:
+        return jsonify({"error": "Payload deve conter campo 'responses' com lista de respostas."}), 400
+
+    responses = data["responses"]
+    if not isinstance(responses, list) or not responses:
+        return jsonify({"error": "'responses' deve ser uma lista não vazia."}), 400
+
+    # Load valid check_ids into a set for fast lookup
+    valid_check_ids = {
+        row[0] for row in db.session.execute(
+            db.select(ChecklistItem.check_id)
+        ).all()
+    }
+
+    # Load already-answered check_ids for this session
+    existing = {
+        row[0] for row in db.session.execute(
+            db.select(ChecklistResponse.check_id).where(
+                ChecklistResponse.session_id == session_id
+            )
+        ).all()
+    }
+
+    to_add  = []
+    skipped = []
+    errors  = []
+
+    for i, entry in enumerate(responses):
+        if not isinstance(entry, dict):
+            errors.append({"index": i, "reason": "Each entry must be an object with check_id and response."})
+            continue
+
+        check_id = entry.get("check_id", "").strip()
+        response = entry.get("response")
+
+        if not check_id:
+            errors.append({"index": i, "reason": "Missing 'check_id'."})
+            continue
+
+        if response is None or not isinstance(response, bool):
+            errors.append({"index": i, "check_id": check_id, "reason": "'response' must be true or false."})
+            continue
+
+        if check_id not in valid_check_ids:
+            errors.append({"index": i, "check_id": check_id, "reason": f"check_id '{check_id}' not found in checklist."})
+            continue
+
+        if check_id in existing:
+            skipped.append(check_id)
+            continue
+
+        to_add.append(ChecklistResponse(
+            session_id=session_id,
+            check_id=check_id,
+            response=response,
+        ))
+        existing.add(check_id)  # prevent duplicates within the same payload
+
+    # Persist
+    saved = 0
+    if to_add:
+        try:
+            db.session.add_all(to_add)
+            db.session.commit()
+            saved = len(to_add)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({"error": "Erro ao salvar no banco.", "details": str(e)}), 500
+
+    # ── Score calculation ─────────────────────────────────────
+    # Load ALL responses for this session (including previously saved ones)
+    all_responses = db.session.execute(
+        db.select(
+            ChecklistResponse.check_id,
+            ChecklistResponse.response,
+            ChecklistItem.dimension,
+            ChecklistItem.weight,
+        )
+        .join(ChecklistItem, ChecklistItem.check_id == ChecklistResponse.check_id)
+        .where(ChecklistResponse.session_id == session_id)
+    ).all()
+
+    # Aggregate by dimension
+    dim_scores: dict[str, dict] = {}
+    total_yes    = 0.0
+    total_weight = 0.0
+
+    for _, response, dimension, weight in all_responses:
+        if dimension not in dim_scores:
+            dim_scores[dimension] = {"yes": 0.0, "total": 0.0}
+        dim_scores[dimension]["total"] += weight
+        if response:
+            dim_scores[dimension]["yes"] += weight
+        total_weight += weight
+        if response:
+            total_yes += weight
+
+    scores = {
+        dim: {
+            "yes":   round(v["yes"], 2),
+            "total": round(v["total"], 2),
+            "pct":   round(v["yes"] / v["total"] * 100, 1) if v["total"] else 0.0,
+        }
+        for dim, v in sorted(dim_scores.items())
+    }
+    scores["overall"] = {
+        "yes":   round(total_yes, 2),
+        "total": round(total_weight, 2),
+        "pct":   round(total_yes / total_weight * 100, 1) if total_weight else 0.0,
+    }
+
+    return jsonify({
+        "session_id": session_id,
+        "saved":      saved,
+        "skipped":    skipped,
+        "errors":     errors,
+        "scores":     scores,
+    }), 200
