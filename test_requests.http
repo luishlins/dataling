@@ -48,3 +48,17 @@ Accept: application/json
 ### GET skills por nível B1
 GET {{baseUrl}}/api/skills/by-level/B1
 Accept: application/json
+
+
+### POST criar evento de reporting (Mispronunciation)
+POST {{baseUrl}}/api/reporting/event
+Content-Type: application/json
+
+{
+  "student_id": {{studentId}},
+  "source_type": "free_note",
+  "raw_input": "student mispronounced the word 'receive' as 'resieve'",
+  "polarity": -1,
+  "severity": 1,
+  "context": "Speaking task - word pronunciation"
+}
