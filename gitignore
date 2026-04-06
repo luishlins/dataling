@@ -1,0 +1,88 @@
+# ======================
+# Ambiente Virtual
+# ======================
+venv/
+.venv/
+env/
+ENV/
+
+# ======================
+# Variáveis de Ambiente
+# ======================
+.env
+.env.*
+!.env.example
+
+# ======================
+# Python
+# ======================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Distribuição / Empacotamento
+dist/
+build/
+eggs/
+*.egg
+*.egg-info/
+.eggs/
+MANIFEST
+
+# ======================
+# Banco de Dados SQLite
+# ======================
+*.sqlite
+*.sqlite3
+*.db
+
+# ======================
+# Flask
+# ======================
+instance/
+.webassets-cache
+flask_session/
+
+# ======================
+# Testes
+# ======================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# ======================
+# IDEs e Editores
+# ======================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ======================
+# Logs
+# ======================
+*.log
+logs/
+
+# ======================
+# Uploads / Arquivos Estáticos Gerados
+# ======================
+uploads/
+staticfiles/
+
+# ======================
+# Mypy / Type Checking
+# ======================
+.mypy_cache/
+.dmypy.json
+dmypy.json
