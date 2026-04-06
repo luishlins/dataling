@@ -59,7 +59,7 @@ def create_student():
 @students_bp.route("/students/<int:id>", methods=["GET"])
 def get_student(id):
     try:
-        student = Student.query.get(id)
+        student = db.session.get(Student, id)
         if student is None:
             return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
         return jsonify(student.to_dict()), 200
@@ -78,7 +78,7 @@ def update_student(id):
         return jsonify({"error": "O corpo da requisição deve ser um JSON válido."}), 400
 
     try:
-        student = Student.query.get(id)
+        student = db.session.get(Student, id)
         if student is None:
             return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
 
@@ -99,7 +99,7 @@ def update_student(id):
 @students_bp.route("/students/<int:id>", methods=["DELETE"])
 def delete_student(id):
     try:
-        student = Student.query.get(id)
+        student = db.session.get(Student, id)
         if student is None:
             return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
 
