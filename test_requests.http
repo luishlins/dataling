@@ -1,0 +1,50 @@
+@baseUrl = http://localhost:5000
+@studentId = 1
+
+### GET todos os alunos
+GET {{baseUrl}}/api/students
+Accept: application/json
+
+
+### POST criar novo aluno
+POST {{baseUrl}}/api/students
+Content-Type: application/json
+
+{
+  "name": "Maria Silva",
+  "start_date": "2024-03-01"
+}
+
+
+### GET aluno por id
+GET {{baseUrl}}/api/students/{{studentId}}
+Accept: application/json
+
+
+### PUT atualizar nome do aluno
+PUT {{baseUrl}}/api/students/{{studentId}}
+Content-Type: application/json
+
+{
+  "name": "Maria Silva Souza"
+}
+
+
+### DELETE remover aluno
+DELETE {{baseUrl}}/api/students/{{studentId}}
+Accept: application/json
+
+
+### GET todos os skills
+GET {{baseUrl}}/api/skills
+Accept: application/json
+
+
+### GET skill por skill_id
+GET {{baseUrl}}/api/skills/grammar-001
+Accept: application/json
+
+
+### GET skills por nível B1
+GET {{baseUrl}}/api/skills/by-level/B1
+Accept: application/json
