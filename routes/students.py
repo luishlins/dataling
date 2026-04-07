@@ -5,6 +5,7 @@ from datetime import date
 from extensions import db
 from models import Student
 from models.student_skill_state import StudentSkillState
+from services.level_estimator import compute_level_estimate, compute_all_skill_estimates
 
 students_bp = Blueprint("students", __name__)
 
@@ -146,5 +147,51 @@ def get_student_skill_states(name):
             result.append(state_dict)
 
         return jsonify(result), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# GET /api/students/<id>/level-estimate  →  estimativa de nível CEFR do aluno
+# ──────────────────────────────────────────────
+@students_bp.route("/students/<int:id>/level-estimate", methods=["GET"])
+def get_student_level_estimate(id):
+    try:
+        student = db.session.get(Student, id)
+        if student is None:
+            return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
+
+        # Estimativa geral
+        overall = compute_level_estimate(id, db.session)
+
+        # Estimativas por macro-habilidade
+        skill_estimates = compute_all_skill_estimates(id, db.session)
+
+        # Formata resposta
+        response = {
+            "overall": {
+                "level": overall["overall_level"],
+                "confidence": overall["confidence"],
+                "fit_scores": overall["fit_scores_by_level"]
+            },
+            "listening": {
+                "level": skill_estimates["listening"]["overall_level"],
+                "confidence": skill_estimates["listening"]["confidence"]
+            },
+            "speaking": {
+                "level": skill_estimates["speaking"]["overall_level"],
+                "confidence": skill_estimates["speaking"]["confidence"]
+            },
+            "reading": {
+                "level": skill_estimates["reading"]["overall_level"],
+                "confidence": skill_estimates["reading"]["confidence"]
+            },
+            "writing": {
+                "level": skill_estimates["writing"]["overall_level"],
+                "confidence": skill_estimates["writing"]["confidence"]
+            }
+        }
+
+        return jsonify(response), 200
     except SQLAlchemyError as e:
         return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500

@@ -100,7 +100,7 @@ async function loadStudents() {
     container.innerHTML = `
       <div class="card-grid">
         ${students.map(student => `
-          <div class="card" data-id="${student.id}">
+          <div class="card clickable-card" data-id="${student.id}">
             <div class="card-label">Student #${student.id}</div>
             <div class="card-title">${student.name}</div>
             <div class="card-meta">
@@ -124,6 +124,14 @@ async function loadStudents() {
           </div>
         `).join("")}
       </div>`;
+
+    // Adiciona event listeners para tornar os cards clicáveis
+    document.querySelectorAll('.clickable-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const studentId = card.getAttribute('data-id');
+        showStudentProfile(studentId);
+      });
+    });
 
   } catch (err) {
     // Captura tanto erros de rede (fetch falhou) quanto os que lançamos acima
@@ -350,15 +358,122 @@ async function saveStudent() {
 
 
 // ─────────────────────────────────────────────────────────────
+// showStudentProfile(studentId)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Exibe o perfil de um aluno específico, incluindo estimativa de nível.
+ * Busca dados via GET /api/students/<id> e GET /api/students/<id>/level-estimate.
+ * Renderiza no #main-content.
+ */
+async function showStudentProfile(studentId) {
+  const mainContent = document.getElementById('main-content');
+  if (!mainContent) {
+    console.error('Elemento #main-content não encontrado.');
+    return;
+  }
+
+  // Mostra loading
+  mainContent.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading student profile…</p>
+    </div>`;
+
+  try {
+    // Busca dados do aluno
+    const studentResponse = await fetch(`${API_BASE}/students/${studentId}`);
+    if (!studentResponse.ok) {
+      throw new Error(`Erro ao buscar aluno: ${studentResponse.status}`);
+    }
+    const student = await studentResponse.json();
+
+    // Busca estimativa de nível
+    const levelResponse = await fetch(`${API_BASE}/students/${studentId}/level-estimate`);
+    if (!levelResponse.ok) {
+      throw new Error(`Erro ao buscar nível: ${levelResponse.status}`);
+    }
+    const levelData = await levelResponse.json();
+
+    // Determina indicador de confiança
+    let confidenceLabel, confidenceClass;
+    if (levelData.overall.confidence >= 0.8) {
+      confidenceLabel = 'Alto';
+      confidenceClass = 'text-success';
+    } else if (levelData.overall.confidence >= 0.5) {
+      confidenceLabel = 'Médio';
+      confidenceClass = 'text-warning';
+    } else {
+      confidenceLabel = 'Baixo';
+      confidenceClass = 'text-danger';
+    }
+
+    // Renderiza o painel
+    mainContent.innerHTML = `
+      <div class="container mt-4">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">${student.name}</h2>
+          </div>
+          <div class="card-body">
+            <div class="row mb-4">
+              <div class="col-12 text-center">
+                <h3 class="display-4">${levelData.overall.level || 'N/A'}</h3>
+                <p class="lead ${confidenceClass}">Confiança: ${confidenceLabel} (${(levelData.overall.confidence * 100).toFixed(0)}%)</p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-3 text-center">
+                <div class="badge badge-primary p-3">
+                  <h5>Listening</h5>
+                  <span class="h4">${levelData.listening.level || 'N/A'}</span>
+                </div>
+              </div>
+              <div class="col-md-3 text-center">
+                <div class="badge badge-success p-3">
+                  <h5>Speaking</h5>
+                  <span class="h4">${levelData.speaking.level || 'N/A'}</span>
+                </div>
+              </div>
+              <div class="col-md-3 text-center">
+                <div class="badge badge-info p-3">
+                  <h5>Reading</h5>
+                  <span class="h4">${levelData.reading.level || 'N/A'}</span>
+                </div>
+              </div>
+              <div class="col-md-3 text-center">
+                <div class="badge badge-warning p-3">
+                  <h5>Writing</h5>
+                  <span class="h4">${levelData.writing.level || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Erro ao carregar perfil do aluno:', error);
+    mainContent.innerHTML = `
+      <div class="alert alert-danger" role="alert">
+        Erro ao carregar perfil do aluno: ${error.message}
+      </div>
+    `;
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // Exports  (compatível com módulos ES e com script tag clássica)
 // ─────────────────────────────────────────────────────────────
 
 // Expõe as funções no objeto window para que chamadas inline
 // (onclick="saveStudent()") funcionem mesmo sem bundler
-window.loadStudents      = loadStudents;
-window.showAddStudentForm = showAddStudentForm;
-window.cancelAddStudent  = cancelAddStudent;
-window.saveStudent       = saveStudent;
+window.loadStudents        = loadStudents;
+window.showAddStudentForm  = showAddStudentForm;
+window.cancelAddStudent    = cancelAddStudent;
+window.saveStudent         = saveStudent;
+window.showStudentProfile  = showStudentProfile;
 
 // Export ES module para quando o arquivo for importado via import()
 export default function init(container, actionsBar) {
