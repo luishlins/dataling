@@ -68,27 +68,6 @@ except Exception as e:
     print(f"DEBUG: Error with reporting_bp: {e}")
     traceback.print_exc()
 
-print("DEBUG: Importing advising_bp...")
-try:
-    from routes.advising import advising_bp
-    print(f"DEBUG: advising_bp imported, name={advising_bp.name}")
-    app.register_blueprint(advising_bp, url_prefix="/api")
-    print("DEBUG: advising_bp registered")
-except Exception as e:
-    print(f"DEBUG: Error with advising_bp: {e}")
-    traceback.print_exc()
-
-print("DEBUG: Importing testing_bp...")
-try:
-    from models.test_result import TestResult
-    from routes.testing import testing_bp
-    print(f"DEBUG: testing_bp imported, name={testing_bp.name}")
-    app.register_blueprint(testing_bp, url_prefix="/api")
-    print("DEBUG: testing_bp registered")
-except Exception as e:
-    print(f"DEBUG: Error with testing_bp: {e}")
-    traceback.print_exc()
-
 print("DEBUG: Final route list:")
 for rule in app.url_map.iter_rules():
     print(f"  {rule}")
