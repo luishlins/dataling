@@ -4,6 +4,7 @@ from datetime import date
 
 from extensions import db
 from models import Student
+from models.student_skill_state import StudentSkillState
 
 students_bp = Blueprint("students", __name__)
 
@@ -109,3 +110,41 @@ def delete_student(id):
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": "Erro ao remover do banco de dados.", "details": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# GET /api/students/<name>/skill-states  →  lista skill states do aluno ordenados por mastery_score
+# ──────────────────────────────────────────────
+@students_bp.route("/students/<name>/skill-states", methods=["GET"])
+def get_student_skill_states(name):
+    try:
+        student = Student.query.filter_by(name=name).first()
+        if student is None:
+            return jsonify({"error": f"Aluno com nome '{name}' não encontrado."}), 404
+
+        # Query skill states with joined skill info, ordered by mastery_score asc
+        skill_states = (
+            db.session.query(StudentSkillState)
+            .filter(StudentSkillState.student_id == student.id)
+            .join(StudentSkillState.skill)
+            .order_by(StudentSkillState.mastery_score.asc())
+            .all()
+        )
+
+        # Build response with skill state data plus skill fields
+        result = []
+        for state in skill_states:
+            state_dict = state.to_dict()
+            skill = state.skill
+            state_dict.update({
+                "skill_id": skill.skill_id,
+                "skill_domain": skill.skill_domain,
+                "cefr_target": skill.cefr_target,
+                "difficulty_weight": skill.difficulty_weight,
+                "examples": skill.examples,
+            })
+            result.append(state_dict)
+
+        return jsonify(result), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500

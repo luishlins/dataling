@@ -16,6 +16,7 @@ from extensions import db
 from models import Student, SkillNode, EvidenceEvent
 from models.evidence_event import evidence_skill_tags
 from services.auto_tagger import auto_tag, VALID_SOURCE_TYPES
+from services.knowledge_tracing import process_evidence_event
 
 reporting_bp = Blueprint("reporting", __name__)
 
@@ -156,6 +157,9 @@ def create_event():
 
         db.session.commit()
 
+        # Processa o evento para atualizar mastery dos skills
+        updated_states = process_evidence_event(event.id, db.session)
+
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({
@@ -171,5 +175,11 @@ def create_event():
     score_map = {t["skill_id"]: t["confidence_score"] for t in tag_candidates}
     for tag in response_body.get("skill_tags", []):
         tag["confidence_score"] = score_map.get(tag["skill_id"])
+
+    # Adiciona os estados de skills atualizados
+    response_body["skill_states_updated"] = [
+        {"skill_id": state.skill_id, "mastery_score": state.mastery_score}
+        for state in updated_states
+    ]
 
     return jsonify(response_body), 201
