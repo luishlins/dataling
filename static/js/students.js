@@ -388,12 +388,19 @@ async function showStudentProfile(studentId) {
     }
     const student = await studentResponse.json();
 
-    // Busca estimativa de nível
-    const levelResponse = await fetch(`${API_BASE}/students/${studentId}/level-estimate`);
-    if (!levelResponse.ok) {
-      throw new Error(`Erro ao buscar nível: ${levelResponse.status}`);
+    // Busca análise de gaps
+    let gapData = null;
+    try {
+      const gapResponse = await fetch(`${API_BASE}/students/${studentId}/gap-analysis`);
+      if (gapResponse.ok) {
+        gapData = await gapResponse.json();
+      } else if (gapResponse.status === 400) {
+        // Insufficient data
+        gapData = { error: 'Dados insuficientes para análise de gaps' };
+      }
+    } catch (gapError) {
+      console.warn('Erro ao buscar análise de gaps:', gapError);
     }
-    const levelData = await levelResponse.json();
 
     // Determina indicador de confiança
     let confidenceLabel, confidenceClass;
@@ -406,6 +413,55 @@ async function showStudentProfile(studentId) {
     } else {
       confidenceLabel = 'Baixo';
       confidenceClass = 'text-danger';
+    }
+
+    // Prepara elementos de gap analysis se disponível
+    let gapAnalysisHTML = '';
+    if (gapData && !gapData.error) {
+      const primaryAspect = gapData.aspect_gaps.reduce((max, aspect) => aspect.gap_total > max.gap_total ? aspect : max).aspect;
+      gapAnalysisHTML = `
+        <div class="row mt-4">
+          <div class="col-md-6">
+            <h4>Progress to Next Level</h4>
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: ${gapData.next_level_distance.percentage}%" aria-valuenow="${gapData.next_level_distance.percentage}" aria-valuemin="0" aria-valuemax="100">${gapData.next_level_distance.percentage}%</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h4>Primary Focus Area</h4>
+            <span class="badge badge-danger">${primaryAspect}</span>
+          </div>
+        </div>
+        <div class="row mt-4">
+          <div class="col-md-6">
+            <h4>Top 5 Skills to Work On</h4>
+            <ul class="list-group">
+              ${gapData.top_5_to_fix.map(skill => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  ${skill.skill_domain}: ${skill.skill_id}
+                  <div class="progress" style="width: 100px;">
+                    <div class="progress-bar" style="width: ${skill.mastery_score * 100}%"></div>
+                  </div>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h4>Study Targets</h4>
+            <ul class="list-group">
+              ${gapData.next_level_distance.study_targets.map(target => `<li class="list-group-item">${target}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    } else if (gapData && gapData.error) {
+      gapAnalysisHTML = `
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="alert alert-info">${gapData.error}</div>
+          </div>
+        </div>
+      `;
     }
 
     // Renderiza o painel
@@ -448,6 +504,7 @@ async function showStudentProfile(studentId) {
                 </div>
               </div>
             </div>
+            ${gapAnalysisHTML}
           </div>
         </div>
       </div>

@@ -21,7 +21,7 @@ class AdvisedVocabItem(db.Model):
 
     # --- Relacionamentos ---
     student = db.relationship(
-        "Student", backref=db.backref("advised_vocab_items", lazy="dynamic")
+        "Student", backref=db.backref("advised_vocab_items", lazy="dynamic", cascade="all, delete-orphan")
     )
 
     def to_dict(self) -> dict:

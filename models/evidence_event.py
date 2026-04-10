@@ -7,6 +7,7 @@ evidence_skill_tags = db.Table(
     db.Column("evidence_id", db.Integer, db.ForeignKey("evidence_events.id"), primary_key=True),
     db.Column("skill_id", db.String(50), db.ForeignKey("skill_nodes.skill_id"), primary_key=True),
     db.Column("teacher_override", db.Boolean, nullable=False, default=False),
+    db.Column("resolved_at", db.DateTime, nullable=True),
 )
 
 
@@ -35,7 +36,7 @@ class EvidenceEvent(db.Model):
     machine_confidence = db.Column(db.Float, nullable=True)
 
     # --- Relacionamentos ---
-    student = db.relationship("Student", backref=db.backref("evidence_events", lazy="dynamic"))
+    student = db.relationship("Student", backref=db.backref("evidence_events", lazy="dynamic", cascade="all, delete-orphan"))
 
     skill_tags = db.relationship(
         "SkillNode",
