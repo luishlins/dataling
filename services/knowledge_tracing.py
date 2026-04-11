@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import update, select, text
+from sqlalchemy import update, select, text, exists
 from models.student_skill_state import StudentSkillState
 from models.evidence_event import EvidenceEvent, evidence_skill_tags
 
@@ -42,9 +42,12 @@ def update_mastery(student_id, skill_id, polarity, severity, db_session):
     salva e retorna o StudentSkillState atualizado.
     """
     # Busca ou cria o StudentSkillState
-    state = db_session.query(StudentSkillState).filter_by(
-        student_id=student_id, skill_id=skill_id
-    ).first()
+    state = db_session.execute(
+        select(StudentSkillState).where(
+            StudentSkillState.student_id == student_id,
+            StudentSkillState.skill_id == skill_id,
+        )
+    ).scalar_one_or_none()
 
     if not state:
         state = StudentSkillState(
@@ -79,11 +82,11 @@ def update_mastery(student_id, skill_id, polarity, severity, db_session):
     # Se success_streak >= 3, resolve evidências negativas anteriores
     if state.success_streak >= 3:
         # Verifica se há evidências negativas para este student
-        has_negative = db_session.query(
-            db_session.query(EvidenceEvent.id).filter(
+        has_negative = db_session.execute(
+            select(exists().where(
                 EvidenceEvent.student_id == student_id,
-                EvidenceEvent.polarity == -1
-            ).exists()
+                EvidenceEvent.polarity == -1,
+            ))
         ).scalar()
         if has_negative:
             # Atualiza resolved_at nas tags de evidências negativas para este student e skill
@@ -119,7 +122,9 @@ def process_evidence_event(event_id, db_session):
     Busca um EvidenceEvent pelo id, para cada skill tagueado chama update_mastery,
     e retorna a lista de StudentSkillStates atualizados.
     """
-    event = db_session.query(EvidenceEvent).filter_by(id=event_id).first()
+    event = db_session.execute(
+        select(EvidenceEvent).where(EvidenceEvent.id == event_id)
+    ).scalar_one_or_none()
     if not event:
         raise ValueError(f"EvidenceEvent with id {event_id} not found")
 

@@ -398,6 +398,38 @@ function injectStyles() {
     .tst-add-msg--error   { background: #FEF2F2; color: #B91C1C; display: block; }
     .tst-add-msg--success { background: #F0FDF4; color: #166534; display: block; }
 
+    /* ── Suggest-level chip ──────────────────────────────── */
+    .tst-suggest-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .tst-suggest-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px;
+      border: 1.5px solid var(--border, #E2DDD6);
+      border-radius: 7px;
+      font-size: 0.75rem; font-weight: 500;
+      background: var(--bg, #F7F5F0);
+      color: var(--text-secondary, #6B6560);
+      cursor: pointer;
+      transition: border-color 140ms, background 140ms;
+      white-space: nowrap;
+    }
+    .tst-suggest-btn:hover { border-color: #001365; color: #001365; background: #eef1f9; }
+    .tst-suggest-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .tst-level-chip {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-family: var(--font-mono, monospace);
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: opacity 140ms, transform 140ms;
+      user-select: none;
+    }
+    .tst-level-chip:hover { opacity: 0.85; transform: scale(1.04); }
+    .tst-level-chip--found { background: #001365; color: #fff; }
+    .tst-level-chip--short { background: #FEF2F2; color: #BF0D3E; border: 1px solid #FECACA; cursor: default; }
+    .tst-level-chip--short:hover { opacity: 1; transform: none; }
+
     /* ── Checklist Session ───────────────────────────────── */
     .checklist-session {
       max-width: 800px;
@@ -852,6 +884,11 @@ function renderItemsPanel() {
             <select id="tst-new-cefr" class="tst-add-select">
               ${CEFR_LEVELS.map(l => `<option value="${l}">${l}</option>`).join("")}
             </select>
+            <div class="tst-suggest-row">
+              <button type="button" class="tst-suggest-btn" id="tst-suggest-btn"
+                onclick="TST.suggestLevel()">&#10024; Sugerir n&#237;vel</button>
+              <span id="tst-level-chip"></span>
+            </div>
           </div>
           <div class="tst-add-field tst-add-full">
             <label class="tst-add-label">Content <span style="color:#C0392B">*</span></label>
@@ -1080,6 +1117,56 @@ window.TST = {
     } catch (err) {
       showErr(`✕ ${err.message}`);
       btn.disabled = false; btn.textContent = "Save Item";
+    }
+  },
+
+  async suggestLevel() {
+    const content = document.getElementById("tst-new-content")?.value.trim();
+    const btn     = document.getElementById("tst-suggest-btn");
+    const chipEl  = document.getElementById("tst-level-chip");
+    if (!btn || !chipEl) return;
+
+    if (!content) {
+      chipEl.className = "tst-level-chip tst-level-chip--short";
+      chipEl.textContent = "Digite o conteúdo primeiro";
+      chipEl.onclick = null;
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "…";
+    chipEl.textContent = "";
+
+    try {
+      const res = await apiFetch("/testing/classify-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: content }),
+      });
+
+      if (res.predicted_level) {
+        const pct = Math.round(res.confidence * 100);
+        chipEl.className = "tst-level-chip tst-level-chip--found";
+        chipEl.textContent = `Nível sugerido: ${res.predicted_level} (${pct}% confiança)`;
+        chipEl.title = "Clique para aplicar";
+        chipEl.onclick = () => {
+          const sel = document.getElementById("tst-new-cefr");
+          if (sel) sel.value = res.predicted_level;
+          chipEl.style.outline = "2px solid #001365";
+          setTimeout(() => { chipEl.style.outline = ""; }, 800);
+        };
+      } else {
+        chipEl.className = "tst-level-chip tst-level-chip--short";
+        chipEl.textContent = "Texto muito curto para classificar";
+        chipEl.onclick = null;
+      }
+    } catch (err) {
+      chipEl.className = "tst-level-chip tst-level-chip--short";
+      chipEl.textContent = `Erro: ${err.message}`;
+      chipEl.onclick = null;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "✨ Sugerir nível";
     }
   },
 

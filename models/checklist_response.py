@@ -26,10 +26,10 @@ class ChecklistResponse(db.Model):
 
     # --- Relationships ---
     session = db.relationship(
-        "TestSession", backref=db.backref("checklist_responses", lazy="dynamic")
+        "TestSession", backref=db.backref("checklist_responses", lazy="select")
     )
     item = db.relationship(
-        "ChecklistItem", backref=db.backref("responses", lazy="dynamic")
+        "ChecklistItem", backref=db.backref("responses", lazy="select")
     )
 
     def to_dict(self) -> dict:

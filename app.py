@@ -92,6 +92,16 @@ except Exception as e:
     print(f"DEBUG: Error with testing_bp:  {e}", flush=True)
     traceback.print_exc()
 
+print("DEBUG: Importing analytics_bp...", flush=True)
+try:
+    from routes.analytics import analytics_bp
+    print(f"DEBUG: analytics_bp imported, name={analytics_bp.name}", flush=True)
+    app.register_blueprint(analytics_bp, url_prefix="/api")
+    print("DEBUG: analytics_bp registered", flush=True)
+except Exception as e:
+    print(f"DEBUG: Error with analytics_bp: {e}", flush=True)
+    traceback.print_exc()
+
 print("DEBUG: Final route list:")
 for rule in app.url_map.iter_rules():
     print(f"  {rule}")
@@ -102,9 +112,6 @@ def index():
         os.path.join(BASE_DIR, "static", "html"),
         "index.html",
     )
-
-from routes.analytics import analytics_bp
-app.register_blueprint(analytics_bp, url_prefix="/api")
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

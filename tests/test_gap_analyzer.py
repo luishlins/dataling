@@ -61,6 +61,7 @@ class TestComputeSkillGap:
             # Create test data
             student = Student(name="Test Student", start_date=date.fromisoformat("2024-01-01"))
             _db.session.add(student)
+            _db.session.flush()  # obtém student.id antes de criar os states
             skills = [
                 SkillNode(skill_id="GRAM_TEST_A1", skill_domain="grammar", cefr_target="A1", difficulty_weight=1.0, examples="Test grammar"),
                 SkillNode(skill_id="VOCAB_TEST_A1", skill_domain="vocabulary", cefr_target="A1", difficulty_weight=1.0, examples="Test vocab"),
@@ -136,16 +137,21 @@ class TestComputeAspectGaps:
         with app.app_context():
             result = compute_aspect_gaps(sample_student.id, _db.session)
 
-            # Listening: LISTEN_TEST_A1 (gap=1.0*0.6=0.6)
+            # Listening:
+            #   LISTEN_TEST_A1 (domain=listening, 1 aspecto):  gap=0.6, share=0.6
+            #   VOCAB_TEST_A1  (domain=vocabulary, 4 aspectos): gap=0.4, share=0.1
+            #   Total = 0.7
             listening = next(item for item in result if item["aspect"] == "listening")
-            assert listening["gap_total"] == pytest.approx(0.6, rel=1e-4)
+            assert listening["gap_total"] == pytest.approx(0.7, rel=1e-4)
 
-            # Speaking: SPEAK_TEST_A1 (gap=1.0*0.8=0.8) + VOCAB_TEST_A1 contribui 0.5 para speaking (distribuído)
-            # Grammar contribui para speaking: GRAM_TEST_A1 gap=0.2, distribuído igualmente para speaking e writing (0.1 cada)
-            # Vocabulary contribui para speaking: VOCAB_TEST_A1 gap=0.4, distribuído para speaking, writing, reading, listening (0.1 cada)
-            speaking_total = 0.8 + 0.1 + 0.1  # SPEAK + GRAM + VOCAB
+            # Speaking:
+            #   GRAM_TEST_A1   (domain=grammar,    2 aspectos): gap=0.2,  share=0.1
+            #   VOCAB_TEST_A1  (domain=vocabulary, 4 aspectos): gap=0.4,  share=0.1
+            #   SPEAK_TEST_A1  (domain=discourse,  2 aspectos): gap=0.8,  share=0.4
+            #   GATEKEEPER_B1  (domain=grammar,    2 aspectos): gap=0.91, share=0.455
+            #   Total = 1.055
             speaking = next(item for item in result if item["aspect"] == "speaking")
-            assert speaking["gap_total"] == pytest.approx(speaking_total, rel=1e-4)
+            assert speaking["gap_total"] == pytest.approx(1.055, rel=1e-4)
 
 
 class TestComputeNextLevelDistance:
@@ -170,24 +176,26 @@ class TestComputeNextLevelDistance:
             _db.session.add(state)
             _db.session.commit()
 
-            result = compute_next_level_distance(sample_student.id, "A1", _db.session)
+            # GATEKEEPER_B1 tem cefr_target="B1" → é gatekeeper do nível A2→B1
+            result = compute_next_level_distance(sample_student.id, "A2", _db.session)
 
             assert result["progress_to_next"] == 100.0
 
     def test_returns_correct_percentage_for_partial_mastery(self, app, sample_student, sample_skills):
         """Retorna porcentagem correta para domínio parcial."""
         with app.app_context():
-            # Adiciona mais um gatekeeper
+            # Adiciona mais um gatekeeper no mesmo nível B1
             gatekeeper2 = SkillNode(skill_id="GATEKEEPER2_B1", skill_domain="vocabulary", cefr_target="B1", difficulty_weight=1.3, examples="Another gatekeeper")
             _db.session.add(gatekeeper2)
             _db.session.commit()
 
-            # Um acima, um abaixo
+            # Um acima do threshold, um abaixo
             state1 = StudentSkillState(student_id=sample_student.id, skill_id="GATEKEEPER_B1", mastery_score=0.8)
             state2 = StudentSkillState(student_id=sample_student.id, skill_id="GATEKEEPER2_B1", mastery_score=0.5)
             _db.session.add_all([state1, state2])
             _db.session.commit()
 
-            result = compute_next_level_distance(sample_student.id, "A1", _db.session)
+            # GATEKEEPER_B1 e GATEKEEPER2_B1 têm cefr_target="B1" → gatekeepers de A2→B1
+            result = compute_next_level_distance(sample_student.id, "A2", _db.session)
 
             assert result["progress_to_next"] == 50.0  # 1 de 2

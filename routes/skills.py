@@ -48,7 +48,7 @@ def list_skills_by_level(cefr_level):
 @skills_bp.route("/skills/<string:skill_id>", methods=["GET"])
 def get_skill(skill_id):
     try:
-        skill = SkillNode.query.get(skill_id)
+        skill = db.session.get(SkillNode, skill_id)
         if skill is None:
             return jsonify({"error": f"Skill '{skill_id}' não encontrada."}), 404
         return jsonify(skill.to_dict()), 200
@@ -75,7 +75,7 @@ def create_skill():
             "error": f"skill_domain inválido. Valores aceitos: {', '.join(sorted(VALID_DOMAINS))}."
         }), 400
 
-    if SkillNode.query.get(data["skill_id"]) is not None:
+    if db.session.get(SkillNode, data["skill_id"]) is not None:
         return jsonify({"error": f"Skill '{data['skill_id']}' já existe."}), 409
 
     try:

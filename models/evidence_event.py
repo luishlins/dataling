@@ -36,13 +36,13 @@ class EvidenceEvent(db.Model):
     machine_confidence = db.Column(db.Float, nullable=True)
 
     # --- Relacionamentos ---
-    student = db.relationship("Student", backref=db.backref("evidence_events", lazy="dynamic", cascade="all, delete-orphan"))
+    student = db.relationship("Student", backref=db.backref("evidence_events", lazy="select", cascade="all, delete-orphan"))
 
     skill_tags = db.relationship(
         "SkillNode",
         secondary=evidence_skill_tags,
-        backref=db.backref("evidence_events", lazy="dynamic"),
-        lazy="dynamic",
+        backref=db.backref("evidence_events", lazy="select"),
+        lazy="select",
     )
 
     # --- Validações leves ---

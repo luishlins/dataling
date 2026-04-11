@@ -86,3 +86,18 @@ staticfiles/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# ======================
+# DataLing — artefatos gerados
+# ======================
+# Dataset gerado pelo build_dataset.py (derivado das fontes)
+data/
+
+# Modelo treinado (binário grande, reproduzível via train_classifier.py)
+models/*.pkl
+
+# PDFs proprietários Callan (não distribuir no repositório)
+callan_pdfs/
+
+# Memória local do Claude Code
+.claude/

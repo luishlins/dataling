@@ -36,8 +36,8 @@ class SkillNode(db.Model):
         secondary=skill_prereqs,
         primaryjoin=skill_id == skill_prereqs.c.skill_id,
         secondaryjoin=skill_id == skill_prereqs.c.prereq_id,
-        backref=db.backref("required_by", lazy="dynamic"),
-        lazy="dynamic",
+        backref=db.backref("required_by", lazy="select"),
+        lazy="select",
     )
 
     def to_dict(self, include_prereqs: bool = True) -> dict:

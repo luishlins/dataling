@@ -23,10 +23,10 @@ class StudentSkillState(db.Model):
 
     # --- Relacionamentos ---
     student = db.relationship(
-        "Student", backref=db.backref("skill_states", lazy="dynamic")
+        "Student", backref=db.backref("skill_states", lazy="select")
     )
     skill = db.relationship(
-        "SkillNode", backref=db.backref("student_states", lazy="dynamic")
+        "SkillNode", backref=db.backref("student_states", lazy="select")
     )
 
     def to_dict(self) -> dict:

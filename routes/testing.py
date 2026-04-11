@@ -23,11 +23,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models import Student, TestItem, TestSession
 from models.test_session import TestSessionResult
+from services.cefr_classifier import classify_text
 
 testing_bp = Blueprint("testing", __name__)
 
 # Campos obrigatórios para criação de TestItem
-_ITEM_REQUIRED = ("item_type", "target_cefr", "content", "options", "correct_answer", "vocab_targets")
+# target_cefr é opcional: se omitido, é inferido pelo classificador CEFR
+_ITEM_REQUIRED = ("item_type", "content", "options", "correct_answer", "vocab_targets")
 
 # Campos obrigatórios para registrar resultado
 _RESULT_REQUIRED = ("item_id", "student_answer", "is_correct")
@@ -117,10 +119,13 @@ def create_item():
             "error": f"'options' e 'vocab_targets' devem ser listas ou strings JSON válidas. Detalhe: {e}"
         }), 400
 
+    # target_cefr fornecido explicitamente ou preenchido pelo classificador
+    provided_cefr = (data.get("target_cefr") or "").strip().upper()
+
     try:
         item = TestItem(
             item_type=data["item_type"].strip(),
-            target_cefr=data["target_cefr"].strip().upper(),
+            target_cefr=provided_cefr or "PENDING",  # placeholder; substituído abaixo
             content=data["content"].strip(),
             options=options_str,
             correct_answer=str(data["correct_answer"]).strip(),
@@ -128,6 +133,15 @@ def create_item():
             distractor_rationale=data.get("distractor_rationale"),
         )
         db.session.add(item)
+        db.session.flush()  # obtém id sem fechar a transação
+
+        if not provided_cefr:
+            result = classify_text(item.content)
+            if result["predicted_level"]:
+                item.target_cefr = result["predicted_level"]
+            else:
+                item.target_cefr = "UNKNOWN"
+
         db.session.commit()
         return jsonify(item.to_dict()), 201
 
@@ -306,6 +320,27 @@ def add_result(session_id):
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": "Erro ao salvar no banco de dados.", "details": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────
+# POST /api/testing/classify-text
+# ─────────────────────────────────────────────────────────────
+
+@testing_bp.route("/testing/classify-text", methods=["POST"])
+def classify_text_route():
+    """
+    Classifica o nivel CEFR de um texto em ingles.
+
+    Payload: {"text": "<texto>"}
+    Resposta 200: {"predicted_level": str|null, "confidence": float, "message": str}
+    Resposta 400: {"error": "campo text obrigatorio"}
+    """
+    data = request.get_json(silent=True) or {}
+    text = data.get("text")
+    if not text or not isinstance(text, str) or not text.strip():
+        return jsonify({"error": "campo text obrigatorio"}), 400
+
+    return jsonify(classify_text(text.strip())), 200
 
 
 # ─────────────────────────────────────────────────────────────

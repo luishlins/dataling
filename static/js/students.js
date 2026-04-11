@@ -362,18 +362,18 @@ async function saveStudent() {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Exibe o perfil de um aluno específico, incluindo estimativa de nível.
- * Busca dados via GET /api/students/<id> e GET /api/students/<id>/level-estimate.
- * Renderiza no #main-content.
+ * Exibe o perfil de um aluno específico com estimativa de nível CEFR
+ * e um resumo de evidências baseado nos skill states.
+ *
+ * Dados buscados em paralelo:
+ *   GET /api/students/<id>
+ *   GET /api/students/<id>/level-estimate
+ *   GET /api/students/<name>/skill-states
  */
 async function showStudentProfile(studentId) {
-  const mainContent = document.getElementById('main-content');
-  if (!mainContent) {
-    console.error('Elemento #main-content não encontrado.');
-    return;
-  }
+  const mainContent = document.getElementById("main-content");
+  if (!mainContent) { console.error("Elemento #main-content não encontrado."); return; }
 
-  // Mostra loading
   mainContent.innerHTML = `
     <div class="loading-state">
       <div class="spinner"></div>
@@ -381,141 +381,179 @@ async function showStudentProfile(studentId) {
     </div>`;
 
   try {
-    // Busca dados do aluno
-    const studentResponse = await fetch(`${API_BASE}/students/${studentId}`);
-    if (!studentResponse.ok) {
-      throw new Error(`Erro ao buscar aluno: ${studentResponse.status}`);
-    }
-    const student = await studentResponse.json();
+    // ── 1. Busca dados do aluno ───────────────────────────────────
+    const studentRes = await fetch(`${API_BASE}/students/${studentId}`);
+    if (!studentRes.ok) throw new Error(`Erro ao buscar aluno: ${studentRes.status}`);
+    const student = await studentRes.json();
 
-    // Busca análise de gaps
-    let gapData = null;
-    try {
-      const gapResponse = await fetch(`${API_BASE}/students/${studentId}/gap-analysis`);
-      if (gapResponse.ok) {
-        gapData = await gapResponse.json();
-      } else if (gapResponse.status === 400) {
-        // Insufficient data
-        gapData = { error: 'Dados insuficientes para análise de gaps' };
+    // ── 2. Busca estimativa de nível e skill states em paralelo ───
+    const [levelRes, statesRes] = await Promise.all([
+      fetch(`${API_BASE}/students/${studentId}/level-estimate`).catch(() => null),
+      fetch(`${API_BASE}/students/${student.name}/skill-states`).catch(() => null),
+    ]);
+
+    const levelData = levelRes?.ok ? await levelRes.json() : null;
+    const allStates = statesRes?.ok ? await statesRes.json() : [];
+
+    // ── 3. Monta o painel principal ───────────────────────────────
+    mainContent.innerHTML = "";
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "max-width:860px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px;";
+    mainContent.appendChild(wrapper);
+
+    // ── 3a. Cabeçalho do aluno ────────────────────────────────────
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;";
+    header.innerHTML = `
+      <div>
+        <div style="font-family:var(--font-display);font-size:1.75rem;color:var(--color-text);letter-spacing:-0.02em;">${student.name}</div>
+        <div style="font-size:0.8125rem;color:var(--color-text-muted);margin-top:4px;font-family:var(--font-mono);">
+          #${student.id} · Start: ${formatDate(student.start_date)}
+          ${student.job_title ? ` · ${student.job_title}` : ""}
+        </div>
+      </div>
+      <button onclick="loadStudents()" style="
+        padding:7px 14px;border-radius:8px;border:1.5px solid var(--color-border);
+        background:transparent;font-size:0.8125rem;color:var(--color-text-secondary);
+        cursor:pointer;transition:background 140ms;">
+        ← Back
+      </button>`;
+    wrapper.appendChild(header);
+
+    // ── 3b. Card de nível estimado ────────────────────────────────
+    if (levelData) {
+      const overall    = levelData.overall  || {};
+      const listening  = levelData.listening || {};
+      const speaking   = levelData.speaking  || {};
+      const reading    = levelData.reading   || {};
+      const writing    = levelData.writing   || {};
+
+      const conf = overall.confidence ?? 0;
+      const confLabel = conf >= 0.8 ? "Alto" : conf >= 0.5 ? "Médio" : "Baixo";
+      const confColor = conf >= 0.8 ? "var(--color-success)" : conf >= 0.5 ? "var(--color-warning)" : "var(--color-error)";
+
+      const levelCard = document.createElement("div");
+      levelCard.style.cssText = "background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;padding:24px 28px;box-shadow:var(--shadow-sm);";
+      levelCard.innerHTML = `
+        <div style="font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-text-muted);margin-bottom:16px;">
+          Estimated Level
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+          <span style="font-family:var(--font-display);font-size:2.5rem;color:#001365;letter-spacing:-0.03em;">
+            ${overall.overall_level || "—"}
+          </span>
+          <span style="font-size:0.8125rem;color:${confColor};font-family:var(--font-mono);">
+            Confiança: ${confLabel} (${Math.round(conf * 100)}%)
+          </span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+          ${[
+            { label: "Listening", data: listening },
+            { label: "Speaking",  data: speaking  },
+            { label: "Reading",   data: reading   },
+            { label: "Writing",   data: writing   },
+          ].map(({ label, data }) => `
+            <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:0.62rem;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:0.08em;margin-bottom:6px;">${label}</div>
+              <div style="font-family:var(--font-display);font-size:1.25rem;color:var(--color-text);">${data.overall_level || "—"}</div>
+            </div>`).join("")}
+        </div>`;
+      wrapper.appendChild(levelCard);
+    }
+
+    // ── 3c. Resumo de Evidências ──────────────────────────────────
+    const evidenceCard = document.createElement("div");
+    evidenceCard.style.cssText = "background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;padding:24px 28px;box-shadow:var(--shadow-sm);";
+
+    const evidenceTitle = document.createElement("div");
+    evidenceTitle.style.cssText = "font-family:var(--font-mono);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-text-muted);margin-bottom:20px;";
+    evidenceTitle.textContent = "Resumo de Evidências";
+    evidenceCard.appendChild(evidenceTitle);
+
+    // Filtra skills com mastery < 0.5 e agrupa por domínio
+    const weak = allStates.filter(s => s.mastery_score < 0.5);
+    const DOMAINS = [
+      { key: "grammar",    label: "Gramática"  },
+      { key: "vocabulary", label: "Vocabulário" },
+      { key: "phonology",  label: "Fonologia"   },
+    ];
+
+    const columnsRow = document.createElement("div");
+    columnsRow.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:16px;";
+
+    DOMAINS.forEach(({ key, label }) => {
+      const top3 = weak
+        .filter(s => s.skill_domain === key)
+        .sort((a, b) => a.mastery_score - b.mastery_score)  // menor mastery = maior gap
+        .slice(0, 3);
+
+      const col = document.createElement("div");
+
+      // Cabeçalho da coluna
+      const colHeader = document.createElement("div");
+      colHeader.style.cssText = "font-family:var(--font-body);font-size:0.8125rem;font-weight:600;color:var(--color-text);margin-bottom:12px;";
+      colHeader.textContent = label;
+      col.appendChild(colHeader);
+
+      if (top3.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "font-size:0.75rem;color:var(--color-text-muted);font-style:italic;padding:8px 0;";
+        empty.textContent = "Nenhuma fraqueza detectada.";
+        col.appendChild(empty);
+      } else {
+        top3.forEach(state => {
+          const pct    = Math.round(state.mastery_score * 100);
+          const desc   = state.examples || state.skill_id;
+
+          const item = document.createElement("div");
+          item.style.cssText = "margin-bottom:14px;";
+
+          // Descrição
+          const descEl = document.createElement("div");
+          descEl.style.cssText = "font-size:0.8rem;color:var(--color-text-secondary);margin-bottom:5px;line-height:1.4;";
+          descEl.textContent = desc;
+          item.appendChild(descEl);
+
+          // Barra de progresso
+          const barWrap = document.createElement("div");
+          barWrap.style.cssText = "height:6px;background:var(--color-border);border-radius:100px;overflow:hidden;";
+          const bar = document.createElement("div");
+          bar.style.cssText = `height:100%;width:${pct}%;background:#001365;border-radius:100px;transition:width 0.4s ease;`;
+          barWrap.appendChild(bar);
+          item.appendChild(barWrap);
+
+          // Percentual
+          const pctEl = document.createElement("div");
+          pctEl.style.cssText = "font-family:var(--font-mono);font-size:0.62rem;color:var(--color-text-muted);margin-top:3px;";
+          pctEl.textContent = `${pct}% domínio`;
+          item.appendChild(pctEl);
+
+          col.appendChild(item);
+        });
       }
-    } catch (gapError) {
-      console.warn('Erro ao buscar análise de gaps:', gapError);
+
+      columnsRow.appendChild(col);
+    });
+
+    evidenceCard.appendChild(columnsRow);
+
+    // Nota quando não há skill states
+    if (allStates.length === 0) {
+      columnsRow.innerHTML = "";
+      const noData = document.createElement("div");
+      noData.style.cssText = "font-size:0.8125rem;color:var(--color-text-muted);text-align:center;padding:20px 0;";
+      noData.textContent = "Nenhum dado de skill state disponível ainda para este aluno.";
+      evidenceCard.appendChild(noData);
     }
 
-    // Determina indicador de confiança
-    let confidenceLabel, confidenceClass;
-    if (levelData.overall.confidence >= 0.8) {
-      confidenceLabel = 'Alto';
-      confidenceClass = 'text-success';
-    } else if (levelData.overall.confidence >= 0.5) {
-      confidenceLabel = 'Médio';
-      confidenceClass = 'text-warning';
-    } else {
-      confidenceLabel = 'Baixo';
-      confidenceClass = 'text-danger';
-    }
+    wrapper.appendChild(evidenceCard);
 
-    // Prepara elementos de gap analysis se disponível
-    let gapAnalysisHTML = '';
-    if (gapData && !gapData.error) {
-      const primaryAspect = gapData.aspect_gaps.reduce((max, aspect) => aspect.gap_total > max.gap_total ? aspect : max).aspect;
-      gapAnalysisHTML = `
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <h4>Progress to Next Level</h4>
-            <div class="progress">
-              <div class="progress-bar" role="progressbar" style="width: ${gapData.next_level_distance.percentage}%" aria-valuenow="${gapData.next_level_distance.percentage}" aria-valuemin="0" aria-valuemax="100">${gapData.next_level_distance.percentage}%</div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <h4>Primary Focus Area</h4>
-            <span class="badge badge-danger">${primaryAspect}</span>
-          </div>
-        </div>
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <h4>Top 5 Skills to Work On</h4>
-            <ul class="list-group">
-              ${gapData.top_5_to_fix.map(skill => `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  ${skill.skill_domain}: ${skill.skill_id}
-                  <div class="progress" style="width: 100px;">
-                    <div class="progress-bar" style="width: ${skill.mastery_score * 100}%"></div>
-                  </div>
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-          <div class="col-md-6">
-            <h4>Study Targets</h4>
-            <ul class="list-group">
-              ${gapData.next_level_distance.study_targets.map(target => `<li class="list-group-item">${target}</li>`).join('')}
-            </ul>
-          </div>
-        </div>
-      `;
-    } else if (gapData && gapData.error) {
-      gapAnalysisHTML = `
-        <div class="row mt-4">
-          <div class="col-12">
-            <div class="alert alert-info">${gapData.error}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    // Renderiza o painel
-    mainContent.innerHTML = `
-      <div class="container mt-4">
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">${student.name}</h2>
-          </div>
-          <div class="card-body">
-            <div class="row mb-4">
-              <div class="col-12 text-center">
-                <h3 class="display-4">${levelData.overall.level || 'N/A'}</h3>
-                <p class="lead ${confidenceClass}">Confiança: ${confidenceLabel} (${(levelData.overall.confidence * 100).toFixed(0)}%)</p>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-3 text-center">
-                <div class="badge badge-primary p-3">
-                  <h5>Listening</h5>
-                  <span class="h4">${levelData.listening.level || 'N/A'}</span>
-                </div>
-              </div>
-              <div class="col-md-3 text-center">
-                <div class="badge badge-success p-3">
-                  <h5>Speaking</h5>
-                  <span class="h4">${levelData.speaking.level || 'N/A'}</span>
-                </div>
-              </div>
-              <div class="col-md-3 text-center">
-                <div class="badge badge-info p-3">
-                  <h5>Reading</h5>
-                  <span class="h4">${levelData.reading.level || 'N/A'}</span>
-                </div>
-              </div>
-              <div class="col-md-3 text-center">
-                <div class="badge badge-warning p-3">
-                  <h5>Writing</h5>
-                  <span class="h4">${levelData.writing.level || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-            ${gapAnalysisHTML}
-          </div>
-        </div>
-      </div>
-    `;
   } catch (error) {
-    console.error('Erro ao carregar perfil do aluno:', error);
+    console.error("Erro ao carregar perfil do aluno:", error);
     mainContent.innerHTML = `
-      <div class="alert alert-danger" role="alert">
+      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;border-radius:10px;padding:16px 20px;margin:24px auto;max-width:600px;font-size:0.875rem;">
         Erro ao carregar perfil do aluno: ${error.message}
-      </div>
-    `;
+      </div>`;
   }
 }
 
