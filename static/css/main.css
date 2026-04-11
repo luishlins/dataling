@@ -750,7 +750,257 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .animate-fade-in { animation: fade-in  0.2s var(--ease-out) forwards; }
 
 
-/* ── 14. Responsive ───────────────────────────────────────────── */
+/* ── 14. Student tab bar ──────────────────────────────────────── */
+
+.stu-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: var(--space-6);
+}
+
+.stu-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    border-color var(--duration) var(--ease-out),
+    color        var(--duration) var(--ease-out),
+    background   var(--duration) var(--ease-out),
+    box-shadow   var(--duration) var(--ease-out);
+  white-space: nowrap;
+}
+
+.stu-tab:hover {
+  border-color: var(--color-brand, #001365);
+  color: var(--color-brand, #001365);
+  background: var(--color-brand-light, #eef1f9);
+}
+
+.stu-tab--active {
+  border-color: var(--color-brand, #001365);
+  background: var(--color-brand, #001365);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 19, 101, .25);
+}
+
+.stu-tab--active:hover {
+  background: var(--color-brand, #001365);
+  color: #fff;
+}
+
+/* Badge de nível dentro da tab */
+.stu-level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+/* Torna o badge mais claro quando a tab está ativa (fundo escuro) */
+.stu-tab--active .stu-level-badge {
+  opacity: 0.9;
+  outline: 1.5px solid rgba(255,255,255,.4);
+}
+
+/* Ponto de alerta vermelho */
+.stu-alert-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-red, #BF0D3E);
+  flex-shrink: 0;
+  animation: pulse-alert 2s ease infinite;
+}
+
+.stu-tab--active .stu-alert-dot {
+  outline: 2px solid rgba(255,255,255,.35);
+}
+
+@keyframes pulse-alert {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(191,13,62,.2); }
+  50%       { box-shadow: 0 0 0 5px rgba(191,13,62,0);  }
+}
+
+@media (max-width: 768px) {
+  .stu-tab-bar { gap: var(--space-1); }
+  .stu-tab     { font-size: var(--text-xs); padding: var(--space-1) var(--space-3); }
+}
+
+
+/* ── 15. Student profile modal ───────────────────────────────── */
+
+.smo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 600;
+  animation: fade-in .15s var(--ease-out) both;
+}
+
+.smo-modal {
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-8) var(--space-10);
+  width: min(540px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fade-up .2s var(--ease-out) both;
+}
+
+/* Close button */
+.smo-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-5);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--duration), color var(--duration);
+}
+.smo-close:hover { background: var(--color-bg); color: var(--color-text); }
+
+/* Header */
+.smo-header  { margin-bottom: var(--space-6); padding-right: var(--space-8); }
+.smo-name    { font-family: var(--font-display); font-size: var(--text-2xl); color: var(--color-text); letter-spacing: -.02em; }
+.smo-meta    { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-2); }
+.smo-meta-item {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  letter-spacing: .04em;
+}
+
+/* Section */
+.smo-section       { margin-bottom: var(--space-6); }
+.smo-section-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* Level row */
+.smo-level-row   { display: flex; align-items: center; gap: var(--space-5); }
+.smo-big-badge   {
+  min-width: 56px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  flex-shrink: 0;
+  letter-spacing: .02em;
+}
+.smo-progress-wrap  { flex: 1; }
+.smo-progress-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* Progress bar (shared by level and topic rows) */
+.smo-bar-wrap {
+  height: 8px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.smo-bar-fill {
+  height: 100%;
+  background: var(--color-brand, #001365);
+  border-radius: var(--radius-full);
+  transition: width .4s var(--ease-out);
+}
+
+/* Aspect grid */
+.smo-aspect-grid  { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
+.smo-aspect-cell  { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.smo-aspect-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.smo-aspect-badge {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #fff;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* Topics */
+.smo-topic-row     { margin-bottom: var(--space-4); }
+.smo-topic-name    { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+.smo-topic-bar-row { display: flex; align-items: center; gap: var(--space-3); }
+.smo-topic-bar-row .smo-bar-wrap { flex: 1; }
+.smo-topic-pct     { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
+
+/* Inline states */
+.smo-loading-inline {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-4) 0;
+}
+.smo-notice {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--space-4) 0;
+}
+
+@media (max-width: 480px) {
+  .smo-modal         { padding: var(--space-6) var(--space-5) var(--space-8); }
+  .smo-aspect-grid   { grid-template-columns: repeat(2, 1fr); }
+}
+
+
+/* ── 16. Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root {
     --content-pad: var(--space-4);

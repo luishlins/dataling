@@ -56,85 +56,93 @@ function renderLoading(container) {
 // loadStudents()
 // ─────────────────────────────────────────────────────────────
 
+/** Retorna a cor de fundo do badge de nível CEFR. */
+function _levelColor(level) {
+  if (!level) return "#9E9890";
+  if (level.startsWith("A"))  return "#2E7D32";   // verde
+  if (level.startsWith("B"))  return "#001365";   // azul
+  return "#6A1B9A";                               // roxo (C1-C2)
+}
+
+/** True se a data ISO estiver há mais de 15 dias. */
+function _isStale(isoDate) {
+  if (!isoDate) return false;
+  return (Date.now() - new Date(isoDate).getTime()) > 15 * 24 * 60 * 60 * 1000;
+}
+
 /**
- * Busca todos os alunos via GET /api/students e renderiza os
- * resultados como cards dentro de #students-list.
+ * Busca todos os alunos via GET /api/students?include_estimates=true
+ * e renderiza como tabs horizontais dentro de #students-list.
  *
- * Fluxo:
- *   1. Mostra spinner
- *   2. Faz a requisição com fetch + await
- *   3. Converte o corpo para JSON com um segundo await
- *   4. Renderiza card para cada aluno  —  ou empty state se []
- *   5. Em caso de erro de rede ou HTTP, exibe mensagem amigável
+ * Cada tab mostra nome + badge de nível. Um ponto vermelho aparece
+ * se last_evidence_date > 15 dias. Clicar chama openStudentModal(data).
  */
 async function loadStudents() {
   const container = getContainer();
   renderLoading(container);
 
   try {
-    // 1. Dispara a requisição e aguarda os headers chegarem
-    const response = await fetch(`${API_BASE}/students`);
-
-    // 2. Se o servidor respondeu com 4xx / 5xx, tratamos como erro
+    const response = await fetch(`${API_BASE}/students?include_estimates=true`);
     if (!response.ok) {
       throw new Error(`Servidor retornou ${response.status} ${response.statusText}`);
     }
-
-    // 3. Aguarda o corpo ser lido e desserializado como JSON
-    //    "students" é agora um array de objetos JavaScript
     const students = await response.json();
 
-    // 4a. Lista vazia → empty state
     if (students.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">👤</div>
-          <h3>No students yet</h3>
-          <p>Add your first student using the button above.</p>
+          <div class="empty-state__icon">👤</div>
+          <div class="empty-state__title">No students yet</div>
+          <p class="empty-state__body">Add your first student using the button above.</p>
         </div>`;
       return;
     }
 
-    // 4b. Gera o HTML de todos os cards de uma vez
-    //     e injeta no DOM em uma única operação (evita reflows múltiplos)
-    container.innerHTML = `
-      <div class="card-grid">
-        ${students.map(student => `
-          <div class="card clickable-card" data-id="${student.id}">
-            <div class="card-label">Student #${student.id}</div>
-            <div class="card-title">${student.name}</div>
-            <div class="card-meta">
-              <div class="card-meta-row">
-                <span>Level</span>
-                <span>
-                  ${student.target_level
-                    ? `<span class="badge badge-blue">${student.target_level}</span>`
-                    : `<span class="badge badge-gray">—</span>`}
-                </span>
-              </div>
-              <div class="card-meta-row">
-                <span>Start date</span>
-                <span>${formatDate(student.start_date)}</span>
-              </div>
-              <div class="card-meta-row">
-                <span>Job title</span>
-                <span>${student.job_title ?? "—"}</span>
-              </div>
-            </div>
-          </div>
-        `).join("")}
-      </div>`;
+    // ── Tab bar ───────────────────────────────────────────────
+    const tabBar = document.createElement("div");
+    tabBar.className = "stu-tab-bar";
 
-    // Adiciona event listeners para tornar os cards clicáveis
-    document.querySelectorAll('.clickable-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const studentId = card.getAttribute('data-id');
-        showStudentProfile(studentId);
+    students.forEach((s, idx) => {
+      const tab = document.createElement("button");
+      tab.className = "stu-tab" + (idx === 0 ? " stu-tab--active" : "");
+      tab.dataset.studentId = s.id;
+
+      // Badge de nível
+      const badge = document.createElement("span");
+      badge.className = "stu-level-badge";
+      badge.textContent = s.overall_level || "—";
+      badge.style.background = _levelColor(s.overall_level);
+
+      // Ponto de alerta
+      const dot = document.createElement("span");
+      dot.className = "stu-alert-dot";
+      dot.hidden = !_isStale(s.last_evidence_date);
+      dot.title = "No evidence in the last 15 days";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "stu-tab-name";
+      nameSpan.textContent = s.name;
+
+      tab.appendChild(badge);
+      tab.appendChild(nameSpan);
+      tab.appendChild(dot);
+
+      tab.addEventListener("click", () => {
+        tabBar.querySelectorAll(".stu-tab").forEach(t => t.classList.remove("stu-tab--active"));
+        tab.classList.add("stu-tab--active");
+        openStudentModal(s);
       });
+
+      tabBar.appendChild(tab);
     });
 
+    container.innerHTML = "";
+    container.appendChild(tabBar);
+
+    // Seleciona o primeiro aluno por defeito
+    openStudentModal(students[0]);
+
   } catch (err) {
-    // Captura tanto erros de rede (fetch falhou) quanto os que lançamos acima
     renderError(container, err.message);
   }
 }
@@ -559,6 +567,187 @@ async function showStudentProfile(studentId) {
 
 
 // ─────────────────────────────────────────────────────────────
+// openStudentModal(studentData)
+// ─────────────────────────────────────────────────────────────
+
+const _CEFR_SEQ = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Formata "2025-09-15T..." → "15/09/2025". */
+function _fmtDMY(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** Cria um elemento com classe e texto opcionais. */
+function _el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls)  e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+/** Barra de progresso azul #001365. */
+function _progressBar(pct) {
+  const wrap = _el("div", "smo-bar-wrap");
+  const fill = _el("div", "smo-bar-fill");
+  fill.style.width = Math.min(100, Math.max(0, pct)) + "%";
+  wrap.appendChild(fill);
+  return wrap;
+}
+
+/**
+ * Abre o modal de perfil do aluno.
+ * @param {Object} s  – objeto de aluno retornado por include_estimates=true
+ */
+async function openStudentModal(s) {
+  // Remove modal anterior se existir
+  document.getElementById("stu-modal-overlay")?.remove();
+
+  // ── Overlay ──────────────────────────────────────────────
+  const overlay = _el("div", "smo-overlay");
+  overlay.id = "stu-modal-overlay";
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+  const modal = _el("div", "smo-modal");
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // ── Botão fechar ──────────────────────────────────────────
+  const closeBtn = _el("button", "smo-close", "×");
+  closeBtn.setAttribute("aria-label", "Fechar");
+  closeBtn.addEventListener("click", () => overlay.remove());
+  modal.appendChild(closeBtn);
+
+  // ── CABEÇALHO ─────────────────────────────────────────────
+  const header = _el("div", "smo-header");
+
+  const nameEl = _el("h2", "smo-name", s.name);
+  header.appendChild(nameEl);
+
+  const meta = _el("div", "smo-meta");
+
+  const startEl = _el("span", "smo-meta-item");
+  startEl.textContent = `Início: ${_fmtDMY(s.start_date)}`;
+  meta.appendChild(startEl);
+
+  const weeksEl = _el("span", "smo-meta-item");
+  weeksEl.textContent = `${s.weeks_since_start ?? 0} semanas de acompanhamento`;
+  meta.appendChild(weeksEl);
+
+  header.appendChild(meta);
+  modal.appendChild(header);
+
+  // ── NÍVEL GERAL ───────────────────────────────────────────
+  const levelSec = _el("div", "smo-section");
+  levelSec.appendChild(_el("div", "smo-section-title", "Nível Geral"));
+
+  const levelRow = _el("div", "smo-level-row");
+
+  const bigBadge = _el("div", "smo-big-badge");
+  bigBadge.textContent = s.overall_level || "—";
+  bigBadge.style.background = _levelColor(s.overall_level);
+  levelRow.appendChild(bigBadge);
+
+  const progressWrap = _el("div", "smo-progress-wrap");
+  const progressLabel = _el("div", "smo-progress-label");
+  const pct = s.next_level_progress ?? 0;
+  const nextLevel = _CEFR_SEQ[_CEFR_SEQ.indexOf(s.overall_level) + 1] ?? null;
+  progressLabel.textContent = nextLevel
+    ? `Progresso para ${nextLevel}: ${pct}%`
+    : "Nível máximo atingido";
+  progressWrap.appendChild(progressLabel);
+  progressWrap.appendChild(_progressBar(pct));
+  levelRow.appendChild(progressWrap);
+
+  levelSec.appendChild(levelRow);
+  modal.appendChild(levelSec);
+
+  // ── NÍVEL POR HABILIDADE ──────────────────────────────────
+  const aspectSec = _el("div", "smo-section");
+  aspectSec.appendChild(_el("div", "smo-section-title", "Nível por Habilidade"));
+
+  const aspectGrid = _el("div", "smo-aspect-grid");
+  const aspects = [
+    { key: "L", label: "Listening"  },
+    { key: "S", label: "Speaking"   },
+    { key: "R", label: "Reading"    },
+    { key: "W", label: "Writing"    },
+  ];
+  aspects.forEach(({ key, label }) => {
+    const cell = _el("div", "smo-aspect-cell");
+    const lbl  = _el("div", "smo-aspect-label", label);
+    const lvl  = s.aspect_levels?.[key] ?? null;
+    const badge = _el("div", "smo-aspect-badge", lvl || "—");
+    badge.style.background = _levelColor(lvl);
+    cell.appendChild(lbl);
+    cell.appendChild(badge);
+    aspectGrid.appendChild(cell);
+  });
+  aspectSec.appendChild(aspectGrid);
+  modal.appendChild(aspectSec);
+
+  // ── TÓPICOS A DOMINAR (assíncrono) ────────────────────────
+  const topicSec = _el("div", "smo-section");
+  topicSec.appendChild(_el("div", "smo-section-title", "Tópicos a Dominar"));
+
+  const topicBody = _el("div", "smo-topic-body");
+  topicBody.appendChild(_el("div", "smo-loading-inline", "Carregando…"));
+  topicSec.appendChild(topicBody);
+  modal.appendChild(topicSec);
+
+  // Fetch assíncrono de gap-analysis
+  try {
+    const res = await fetch(`${API_BASE}/students/${s.id}/gap-analysis`);
+    topicBody.innerHTML = "";
+
+    if (!res.ok) {
+      topicBody.appendChild(_el("div", "smo-notice", "Dados insuficientes para análise de tópicos."));
+    } else {
+      const gap = await res.json();
+
+      // Determina próximo nível a partir do overall_level atual
+      const nextIdx = _CEFR_SEQ.indexOf(s.overall_level) + 1;
+      const targetLevel = nextIdx > 0 && nextIdx < _CEFR_SEQ.length
+        ? _CEFR_SEQ[nextIdx] : null;
+
+      // Filtra top_5_to_fix por domain=grammar e cefr_target=próximo nível
+      const top5 = (gap.top_5_to_fix || [])
+        .filter(sk => sk.skill_domain === "grammar" && (!targetLevel || sk.cefr_target === targetLevel))
+        .slice(0, 5);
+
+      // Fallback: se nenhum skill de grammar no próximo nível, mostra top 5 geral
+      const items = top5.length > 0 ? top5 : (gap.top_5_to_fix || []).slice(0, 5);
+
+      if (items.length === 0) {
+        topicBody.appendChild(_el("div", "smo-notice", "Nenhum tópico crítico identificado."));
+      } else {
+        items.forEach(sk => {
+          const row = _el("div", "smo-topic-row");
+
+          const nameEl = _el("div", "smo-topic-name", sk.skill_id);
+          row.appendChild(nameEl);
+
+          const barRow = _el("div", "smo-topic-bar-row");
+          barRow.appendChild(_progressBar(Math.round(sk.mastery_score * 100)));
+
+          const pctEl = _el("span", "smo-topic-pct",
+            `${Math.round(sk.mastery_score * 100)}%`);
+          barRow.appendChild(pctEl);
+
+          row.appendChild(barRow);
+          topicBody.appendChild(row);
+        });
+      }
+    }
+  } catch {
+    topicBody.innerHTML = "";
+    topicBody.appendChild(_el("div", "smo-notice", "Erro ao carregar tópicos."));
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // Exports  (compatível com módulos ES e com script tag clássica)
 // ─────────────────────────────────────────────────────────────
 
@@ -569,6 +758,7 @@ window.showAddStudentForm  = showAddStudentForm;
 window.cancelAddStudent    = cancelAddStudent;
 window.saveStudent         = saveStudent;
 window.showStudentProfile  = showStudentProfile;
+window.openStudentModal    = openStudentModal;
 
 // Export ES module para quando o arquivo for importado via import()
 export default function init(container, actionsBar) {

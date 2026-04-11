@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import date
+from datetime import date, datetime, timezone
 
 from extensions import db
 from models import Student
+from models.evidence_event import EvidenceEvent
 from models.student_skill_state import StudentSkillState
 from models.skill_node import SkillNode
 from services.level_estimator import compute_level_estimate, compute_all_skill_estimates
@@ -14,12 +15,94 @@ students_bp = Blueprint("students", __name__)
 
 # ──────────────────────────────────────────────
 # GET /api/students  →  lista todos os alunos
+#
+# Query params:
+#   include_estimates=true  — enriquece cada aluno com campos calculados:
+#     overall_level, confidence, aspect_levels (L/S/R/W), primary_focus,
+#     top_issues, next_level_progress, start_date (primeiro EvidenceEvent),
+#     weeks_since_start, last_evidence_date
 # ──────────────────────────────────────────────
 @students_bp.route("/students", methods=["GET"])
 def list_students():
+    include_estimates = request.args.get("include_estimates", "").lower() == "true"
+
     try:
         students = Student.query.all()
-        return jsonify([s.to_dict() for s in students]), 200
+
+        if not include_estimates:
+            return jsonify([
+                {"id": s.id, "name": s.name, "email": getattr(s, "email", None)}
+                for s in students
+            ]), 200
+
+        result = []
+        today = datetime.now(timezone.utc).date()
+
+        for s in students:
+            row = {"id": s.id, "name": s.name, "email": getattr(s, "email", None)}
+
+            # ── Level estimate ──────────────────────────────────
+            overall_est  = compute_level_estimate(s.id, db.session)
+            skill_est    = compute_all_skill_estimates(s.id, db.session)
+
+            row["overall_level"] = overall_est["overall_level"]
+            row["confidence"]    = round(overall_est["confidence"], 4)
+            row["aspect_levels"] = {
+                "L": skill_est["listening"]["overall_level"],
+                "S": skill_est["speaking"]["overall_level"],
+                "R": skill_est["reading"]["overall_level"],
+                "W": skill_est["writing"]["overall_level"],
+            }
+
+            # ── Primary focus (aspect with highest gap_total) ───
+            aspect_gaps = compute_aspect_gaps(s.id, db.session)
+            if aspect_gaps:
+                row["primary_focus"] = aspect_gaps[0]["aspect"]   # already sorted desc
+            else:
+                row["primary_focus"] = None
+
+            # ── Top 2 issues (skill_ids with highest gap) ───────
+            skill_gaps = compute_skill_gap(s.id, db.session)
+            row["top_issues"] = [g["skill_id"] for g in skill_gaps[:2]]
+
+            # ── Next-level progress ─────────────────────────────
+            current_level = overall_est["overall_level"]
+            if current_level:
+                dist = compute_next_level_distance(s.id, current_level, db.session)
+                row["next_level_progress"] = dist.get("progress_to_next", 0.0)
+            else:
+                row["next_level_progress"] = 0.0
+
+            # ── Evidence dates ──────────────────────────────────
+            first_ev = (
+                db.session.query(EvidenceEvent)
+                .filter_by(student_id=s.id)
+                .order_by(EvidenceEvent.timestamp.asc())
+                .first()
+            )
+            last_ev = (
+                db.session.query(EvidenceEvent)
+                .filter_by(student_id=s.id)
+                .order_by(EvidenceEvent.timestamp.desc())
+                .first()
+            )
+
+            if first_ev:
+                first_date = first_ev.timestamp.date() if hasattr(first_ev.timestamp, "date") else first_ev.timestamp
+                row["start_date"]       = first_date.isoformat()
+                row["weeks_since_start"] = (today - first_date).days // 7
+            else:
+                row["start_date"]        = None
+                row["weeks_since_start"] = 0
+
+            row["last_evidence_date"] = (
+                last_ev.timestamp.isoformat() if last_ev else None
+            )
+
+            result.append(row)
+
+        return jsonify(result), 200
+
     except SQLAlchemyError as e:
         return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
 
