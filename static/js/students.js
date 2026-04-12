@@ -602,6 +602,112 @@ function _progressBar(pct) {
 }
 
 /**
+ * Exibe/esconde o formulário inline de override de nível no modal.
+ * Chamado pelo botão "Ajustar nível" dentro do modal.
+ */
+function _toggleOverrideForm(studentId, levelSec, bigBadge) {
+  // Se o form já existe, remove (toggle off)
+  const existing = levelSec.querySelector(".smo-override-form");
+  if (existing) { existing.remove(); return; }
+
+  // ── Form container ──────────────────────────────────────────
+  const form = _el("div", "smo-override-form");
+  form.id = "smo-override-form";
+
+  // Select de nível
+  const levelRow = _el("div", "smo-override-row");
+  levelRow.appendChild(_el("label", "smo-override-label", "Novo nível"));
+  const select = document.createElement("select");
+  select.className = "smo-override-select";
+  _CEFR_SEQ.forEach(lvl => {
+    const opt = document.createElement("option");
+    opt.value = lvl;
+    opt.textContent = lvl;
+    select.appendChild(opt);
+  });
+  // Pre-select current level if known
+  const badge = document.getElementById("smo-overall-badge");
+  if (badge && _CEFR_SEQ.includes(badge.textContent)) {
+    select.value = badge.textContent;
+  }
+  levelRow.appendChild(select);
+  form.appendChild(levelRow);
+
+  // Textarea de motivo
+  const reasonRow = _el("div", "smo-override-row");
+  reasonRow.appendChild(_el("label", "smo-override-label", "Motivo"));
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "smo-override-input";
+  input.placeholder = "Descreva o motivo do ajuste…";
+  reasonRow.appendChild(input);
+  form.appendChild(reasonRow);
+
+  // Mensagem de erro
+  const errorMsg = _el("div", "smo-override-error");
+  form.appendChild(errorMsg);
+
+  // Botões
+  const actions = _el("div", "smo-override-actions");
+
+  const confirmBtn = _el("button", "smo-override-confirm", "Confirmar");
+  confirmBtn.addEventListener("click", async () => {
+    const level  = select.value;
+    const reason = input.value.trim();
+
+    errorMsg.textContent = "";
+
+    if (!reason) {
+      errorMsg.textContent = "Informe o motivo do ajuste";
+      return;
+    }
+    if (reason.length < 10) {
+      errorMsg.textContent = "Informe o motivo do ajuste";
+      return;
+    }
+
+    confirmBtn.disabled    = true;
+    confirmBtn.textContent = "Salvando…";
+
+    try {
+      const res = await fetch(`${API_BASE}/students/${studentId}/level-override`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ override_level: level, reason }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        errorMsg.textContent = body.error || `Erro ${res.status}`;
+        confirmBtn.disabled    = false;
+        confirmBtn.textContent = "Confirmar";
+        return;
+      }
+
+      // ── Sucesso: atualiza o badge sem recarregar ───────────────
+      bigBadge.textContent       = level;
+      bigBadge.style.background  = _levelColor(level);
+      form.remove();
+
+    } catch (err) {
+      errorMsg.textContent = "Erro de rede. Tente novamente.";
+      confirmBtn.disabled    = false;
+      confirmBtn.textContent = "Confirmar";
+    }
+  });
+
+  const cancelBtn = _el("button", "smo-override-cancel", "Cancelar");
+  cancelBtn.addEventListener("click", () => form.remove());
+
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  form.appendChild(actions);
+
+  levelSec.appendChild(form);
+  input.focus();
+}
+
+/**
  * Abre o modal de perfil do aluno.
  * @param {Object} s  – objeto de aluno retornado por include_estimates=true
  */
@@ -650,9 +756,14 @@ async function openStudentModal(s) {
   const levelRow = _el("div", "smo-level-row");
 
   const bigBadge = _el("div", "smo-big-badge");
+  bigBadge.id = "smo-overall-badge";
   bigBadge.textContent = s.overall_level || "—";
   bigBadge.style.background = _levelColor(s.overall_level);
   levelRow.appendChild(bigBadge);
+
+  const adjustBtn = _el("button", "smo-adjust-btn", "Ajustar nível");
+  adjustBtn.addEventListener("click", () => _toggleOverrideForm(s.id, levelSec, bigBadge));
+  levelRow.appendChild(adjustBtn);
 
   const progressWrap = _el("div", "smo-progress-wrap");
   const progressLabel = _el("div", "smo-progress-label");

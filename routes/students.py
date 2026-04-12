@@ -1,3 +1,5 @@
+import json as _json
+
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import date, datetime, timezone
@@ -335,5 +337,88 @@ def get_student_gap_analysis(id):
         }
 
         return jsonify(response), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# POST /api/students/<id>/level-override
+# ──────────────────────────────────────────────
+_VALID_CEFR = {"A1", "A2", "B1", "B2", "C1", "C2"}
+
+
+@students_bp.route("/students/<int:id>/level-override", methods=["POST"])
+def create_level_override(id):
+    """
+    Registra um override manual de nível CEFR para o aluno.
+
+    Payload JSON:
+        { "override_level": "B2", "reason": "aluno demonstrou desempenho acima do esperado" }
+
+    Cria um EvidenceEvent com source_type="LevelOverride", polarity=0.
+    Retorna 201 com o evento criado.
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "O corpo da requisição deve ser um JSON válido."}), 400
+
+    override_level = str(data.get("override_level") or "").strip().upper()
+    reason         = str(data.get("reason") or "").strip()
+
+    if not override_level:
+        return jsonify({"error": "Campo obrigatório ausente: override_level."}), 400
+    if override_level not in _VALID_CEFR:
+        return jsonify({
+            "error": f"override_level inválido: '{override_level}'. "
+                     f"Valores aceitos: {', '.join(sorted(_VALID_CEFR))}."
+        }), 400
+    if not reason:
+        return jsonify({"error": "Campo obrigatório ausente: reason."}), 400
+
+    try:
+        student = db.session.get(Student, id)
+        if student is None:
+            return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
+
+        event = EvidenceEvent(
+            student_id    = id,
+            source_module = "Reporting",
+            source_type   = "LevelOverride",
+            raw_input     = f"Level override to {override_level}",
+            context       = _json.dumps({"override_level": override_level, "reason": reason}),
+            polarity      = 0,
+            severity      = 1,
+        )
+        db.session.add(event)
+        db.session.commit()
+        return jsonify(event.to_dict()), 201
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao salvar no banco de dados.", "details": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# GET /api/students/<id>/overrides
+# ──────────────────────────────────────────────
+@students_bp.route("/students/<int:id>/overrides", methods=["GET"])
+def get_level_overrides(id):
+    """
+    Retorna todos os EvidenceEvents de tipo LevelOverride do aluno,
+    ordenados por timestamp desc.
+    """
+    try:
+        student = db.session.get(Student, id)
+        if student is None:
+            return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
+
+        overrides = (
+            db.session.query(EvidenceEvent)
+            .filter_by(student_id=id, source_type="LevelOverride")
+            .order_by(EvidenceEvent.timestamp.desc())
+            .all()
+        )
+        return jsonify([e.to_dict() for e in overrides]), 200
+
     except SQLAlchemyError as e:
         return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500

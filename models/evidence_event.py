@@ -48,8 +48,8 @@ class EvidenceEvent(db.Model):
     # --- Validações leves ---
     @staticmethod
     def _validate(polarity: int, severity: int) -> None:
-        if polarity not in (-1, 1):
-            raise ValueError(f"polarity must be -1 or 1, got {polarity}")
+        if polarity not in (-1, 0, 1):
+            raise ValueError(f"polarity must be -1, 0, or 1, got {polarity}")
         if severity not in (1, 2, 3):
             raise ValueError(f"severity must be 1, 2 or 3, got {severity}")
 
