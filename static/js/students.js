@@ -139,8 +139,13 @@ async function loadStudents() {
     container.innerHTML = "";
     container.appendChild(tabBar);
 
-    // Seleciona o primeiro aluno por defeito
-    openStudentModal(students[0]);
+    // Seleciona o primeiro aluno por defeito (ou aluno pendente do módulo Testing)
+    const pendingId = window._pendingStudentId;
+    if (pendingId) delete window._pendingStudentId;
+    const target = pendingId
+      ? (students.find(s => s.id === pendingId) || students[0])
+      : students[0];
+    openStudentModal(target);
 
   } catch (err) {
     renderError(container, err.message);

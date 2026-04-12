@@ -29,9 +29,13 @@ from models import SkillNode
 # Tipos aceitos
 # ─────────────────────────────────────────────────────────────
 
-SourceType = Literal["grammar_flag", "free_note", "test_response"]
+SourceType = Literal["grammar_flag", "free_note", "test_response",
+                     "ListeningBreakdown", "WritingSample"]
 
-VALID_SOURCE_TYPES: set[str] = {"grammar_flag", "free_note", "test_response"}
+VALID_SOURCE_TYPES: set[str] = {
+    "grammar_flag", "free_note", "test_response",
+    "ListeningBreakdown", "WritingSample",
+}
 
 # ─────────────────────────────────────────────────────────────
 # Stopwords — palavras que não contribuem para o matching
@@ -212,6 +216,10 @@ def auto_tag(
             f"source_type inválido: '{source_type}'. "
             f"Valores aceitos: {', '.join(sorted(VALID_SOURCE_TYPES))}."
         )
+
+    # Observational types — no skill-matching needed
+    if source_type in ("ListeningBreakdown", "WritingSample"):
+        return []
 
     # ── Tokenização ───────────────────────────────────────────
     tokens = _tokenize(raw_input)

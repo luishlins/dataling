@@ -217,12 +217,25 @@ def create_session():
             "error": f"Student com id {data['student_id']} não encontrado."
         }), 400
 
+    session_type = data["session_type"].strip()
+    if session_type not in {"Proficiency", "Reading", "Listening", "Speaking", "Writing",
+                            "ReadingMCQ", "VideoUnderstanding", "PronunciationTask",
+                            "FreeSpeaking", "WritingTask", "Dictation"}:
+        return jsonify({"error": f"session_type inválido: '{session_type}'."}), 400
+
     try:
-        session = TestSession(
+        kwargs = dict(
             student_id=data["student_id"],
-            session_type=data["session_type"].strip(),
+            session_type=session_type,
             notes=data.get("notes"),
         )
+        if data.get("duration_minutes") is not None:
+            kwargs["duration_minutes"] = int(data["duration_minutes"])
+        if data.get("session_date"):
+            from datetime import datetime
+            kwargs["session_date"] = datetime.fromisoformat(data["session_date"])
+
+        session = TestSession(**kwargs)
         db.session.add(session)
         db.session.commit()
         return jsonify(session.to_dict()), 201
@@ -250,13 +263,57 @@ def list_sessions(student_id):
         sessions = (
             TestSession.query
             .filter_by(student_id=student_id)
-            .order_by(TestSession.applied_at.desc())
+            .order_by(TestSession.session_date.desc())
             .all()
         )
         return jsonify([s.to_dict() for s in sessions]), 200
 
     except SQLAlchemyError as e:
         return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────
+# PATCH /testing/sessions/<session_id>
+# ─────────────────────────────────────────────────────────────
+
+@testing_bp.route("/testing/sessions/<int:session_id>", methods=["PATCH"])
+def update_session(session_id):
+    """
+    Atualiza overall_result e/ou duration_minutes ao finalizar uma sessão.
+
+    Campos aceitos (todos opcionais):
+      overall_result   — dict com o resumo pós-teste
+      duration_minutes — int
+      notes            — string
+    """
+    session = db.session.get(TestSession, session_id)
+    if session is None:
+        return jsonify({"error": f"Sessão com id {session_id} não encontrada."}), 404
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "O corpo da requisição deve ser um JSON válido."}), 400
+
+    if "overall_result" in data:
+        if not isinstance(data["overall_result"], dict):
+            return jsonify({"error": "'overall_result' deve ser um objeto JSON."}), 400
+        session.set_overall_result(data["overall_result"])
+
+    if "duration_minutes" in data:
+        try:
+            session.duration_minutes = int(data["duration_minutes"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "'duration_minutes' deve ser um inteiro."}), 400
+
+    if "notes" in data:
+        session.notes = data["notes"]
+
+    try:
+        db.session.commit()
+        return jsonify(session.to_dict()), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao atualizar no banco de dados.", "details": str(e)}), 500
 
 
 # ─────────────────────────────────────────────────────────────
