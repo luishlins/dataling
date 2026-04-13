@@ -2191,27 +2191,14 @@ async function startReadingSession() {
       body: JSON.stringify({ student_id: studentId, session_type: "ReadingMCQ" }),
     });
 
-    // 3. Fetch items at estimated level; widen to adjacent levels if < 3 found
-    const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
-    let items = await apiFetch(`/testing/items?type=ReadingMCQ&cefr=${level}`).catch(() => []);
-
-    if (items.length < 3) {
-      const idx = CEFR_ORDER.indexOf(level);
-      for (const adj of [CEFR_ORDER[idx - 1], CEFR_ORDER[idx + 1]].filter(Boolean)) {
-        const more = await apiFetch(`/testing/items?type=ReadingMCQ&cefr=${adj}`).catch(() => []);
-        items = [...items, ...more];
-        if (items.length >= 5) break;
-      }
-    }
-
-    // Shuffle and cap at 10
-    items = items.sort(() => Math.random() - 0.5).slice(0, 10);
+    // 3. Fetch targeted items via suggest-items (ranked by relevance, CEFR ±1)
+    let items = await apiFetch(`/testing/suggest-items/${studentId}?session_type=ReadingMCQ&n=5`).catch(() => []);
 
     if (!items.length) {
       if (panel) panel.innerHTML = `
         <div class="tst-empty">
           <div class="tst-empty-icon">📖</div>
-          <p>No ReadingMCQ items found for level ${level}. Import items first.</p>
+          <p>No ReadingMCQ items available for this student. Import items first.</p>
         </div>`;
       return;
     }
@@ -2262,6 +2249,9 @@ function showReadingItem() {
       <div class="reading-meta">
         <span class="tst-chip tst-chip--blue">ReadingMCQ</span>
         <span class="tst-chip tst-chip--gray">${item.target_cefr}</span>
+        ${item.relevance_score != null
+          ? `<span class="tst-chip tst-chip--green" title="Targeted relevance score">Relevância: ${Number(item.relevance_score).toFixed(2)}</span>`
+          : ""}
         <span style="font-family:var(--font-mono,monospace);font-size:0.65rem;color:var(--text-muted,#A09890);margin-left:auto">
           Session #${sessionId}
         </span>

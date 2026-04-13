@@ -2,6 +2,13 @@ from extensions import db
 from datetime import datetime, timezone
 
 
+test_item_skills = db.Table(
+    "test_item_skills",
+    db.Column("item_id", db.Integer, db.ForeignKey("test_items.id"), primary_key=True),
+    db.Column("skill_id", db.String(50), db.ForeignKey("skill_nodes.skill_id"), primary_key=True),
+)
+
+
 class TestItem(db.Model):
     __tablename__ = "test_items"
 
@@ -15,6 +22,10 @@ class TestItem(db.Model):
     distractor_rationale = db.Column(db.Text, nullable=True)
     created_at = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    skills_tested = db.relationship(
+        "SkillNode", secondary=test_item_skills, lazy="select"
     )
 
     def to_dict(self) -> dict:

@@ -404,6 +404,49 @@ def classify_text_route():
 # POST /testing/items/import-csv
 # ─────────────────────────────────────────────────────────────
 
+from services.test_targeter import select_items_for_session, compute_item_relevance
+
+
+# ─────────────────────────────────────────────────────────────
+# GET /testing/suggest-items/<student_id>
+# ─────────────────────────────────────────────────────────────
+
+@testing_bp.route("/testing/suggest-items/<int:student_id>", methods=["GET"])
+def suggest_items(student_id):
+    """
+    Retorna itens sugeridos para uma sessão, ordenados por relevância.
+
+    Query params:
+      session_type  — tipo de item a filtrar (default: ReadingMCQ)
+      n             — número de itens a retornar (default: 5, max: 20)
+
+    Resposta 200:
+      [{ ...item_fields, relevance_score: float }, ...]
+    """
+    student = db.session.get(Student, student_id)
+    if student is None:
+        return jsonify({"error": f"Student com id {student_id} não encontrado."}), 404
+
+    session_type = request.args.get("session_type", "ReadingMCQ").strip()
+    try:
+        n = max(1, min(20, int(request.args.get("n", 5))))
+    except (TypeError, ValueError):
+        n = 5
+
+    try:
+        items = select_items_for_session(student_id, session_type, n, db.session)
+        result = []
+        for item in items:
+            score = compute_item_relevance(student_id, item.id, db.session)
+            d = item.to_dict()
+            d["relevance_score"] = round(score, 4)
+            result.append(d)
+        return jsonify(result), 200
+
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": "Erro ao calcular sugestões.", "details": str(e)}), 500
+
+
 import csv
 import io as _io
 
