@@ -564,7 +564,7 @@ async function showStudentProfile(studentId) {
   } catch (error) {
     console.error("Erro ao carregar perfil do aluno:", error);
     mainContent.innerHTML = `
-      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;border-radius:10px;padding:16px 20px;margin:24px auto;max-width:600px;font-size:0.875rem;">
+      <div style="background:rgba(191,13,62,.06);border:1px solid rgba(191,13,62,.25);color:#BF0D3E;border-radius:10px;padding:16px 20px;margin:24px auto;max-width:600px;font-size:0.875rem;">
         Erro ao carregar perfil do aluno: ${error.message}
       </div>`;
   }

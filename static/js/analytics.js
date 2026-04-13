@@ -53,12 +53,12 @@ function renderLevelDistribution(students, grid) {
     const val = Math.round(frac * maxCount);
     svg.appendChild(_svgEl("line", {
       x1: PL, x2: PL + chartW, y1: y, y2: y,
-      stroke: "#E2DDD6", "stroke-width": "1",
+      stroke: "#D0D3E8", "stroke-width": "1",
     }));
     const t = _svgEl("text", {
       x: PL - 6, y: y + 4,
       "text-anchor": "end", "font-size": "10",
-      fill: "#A09890", "font-family": "DM Mono,monospace",
+      fill: "#8C91B0", "font-family": "DM Mono,monospace",
     });
     t.textContent = val;
     svg.appendChild(t);
@@ -82,7 +82,7 @@ function renderLevelDistribution(students, grid) {
       const t = _svgEl("text", {
         x: x + w / 2, y: y - 5,
         "text-anchor": "middle", "font-size": "11",
-        fill: "#1A1714", "font-family": "DM Mono,monospace", "font-weight": "600",
+        fill: "#333333", "font-family": "DM Mono,monospace", "font-weight": "600",
       });
       t.textContent = count;
       svg.appendChild(t);
@@ -92,7 +92,7 @@ function renderLevelDistribution(students, grid) {
     const lbl = _svgEl("text", {
       x: x + w / 2, y: PT + chartH + 22,
       "text-anchor": "middle", "font-size": "12",
-      fill: "#6B6560", "font-family": "DM Mono,monospace",
+      fill: "#5A5F7A", "font-family": "DM Mono,monospace",
     });
     lbl.textContent = level;
     svg.appendChild(lbl);
@@ -146,7 +146,7 @@ function renderSkillGaps(students, grid) {
     const txt = _svgEl("text", {
       x: PL - 10, y: y + ROW_H / 2 + 4,
       "text-anchor": "end", "font-size": "10.5",
-      fill: "#615C55", "font-family": "DM Sans,sans-serif",
+      fill: "#5A5F7A", "font-family": "DM Sans,sans-serif",
     });
     txt.textContent = short;
     svg.appendChild(txt);
@@ -154,7 +154,7 @@ function renderSkillGaps(students, grid) {
     // Track
     svg.appendChild(_svgEl("rect", {
       x: PL, y: y + 9, width: barMaxW, height: ROW_H - 18,
-      fill: "#F4F2EE", rx: "4",
+      fill: "#E8EAF6", rx: "4",
     }));
 
     // Bar
@@ -166,7 +166,7 @@ function renderSkillGaps(students, grid) {
     // Count
     const ct = _svgEl("text", {
       x: PL + bW + 7, y: y + ROW_H / 2 + 4,
-      "font-size": "10", fill: "#1A1714",
+      "font-size": "10", fill: "#333333",
       "font-family": "DM Mono,monospace", "font-weight": "600",
     });
     ct.textContent = count;

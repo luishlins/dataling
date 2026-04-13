@@ -34,8 +34,8 @@ const EVENT_TYPES = [
     label:       "Grammar Flag",
     source_type: "grammar_flag",
     icon:        "⚑",
-    color:       "#1C3F8F",
-    colorLight:  "#EBF0FB",
+    color:       "#001365",
+    colorLight:  "#E8EAF6",
     description: "Grammatical structure error",
     polarity:    -1,
   },
@@ -452,7 +452,7 @@ function injectStyles() {
       gap: 6px;
       padding: 18px 16px;
       background: var(--surface, #fff);
-      border: 1.5px solid var(--border, #E2DDD6);
+      border: 1.5px solid var(--border, #D0D3E8);
       border-radius: 14px;
       cursor: pointer;
       text-align: left;
@@ -478,12 +478,12 @@ function injectStyles() {
       font-family: var(--font-body, sans-serif);
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--text-primary, #1A1714);
+      color: var(--text-primary, #333333);
       line-height: 1.2;
     }
     .qc-type-desc {
       font-size: 0.7rem;
-      color: var(--text-muted, #A09890);
+      color: var(--text-muted, #8C91B0);
       line-height: 1.4;
     }
 
@@ -495,16 +495,16 @@ function injectStyles() {
     .qc-empty {
       padding: 48px 24px;
       text-align: center;
-      color: var(--text-muted, #A09890);
+      color: var(--text-muted, #8C91B0);
       font-size: 0.875rem;
-      border: 1.5px dashed var(--border, #E2DDD6);
+      border: 1.5px dashed var(--border, #D0D3E8);
       border-radius: 14px;
     }
 
     /* ── Form ────────────────────────────────────────────── */
     .qc-form {
       background: var(--surface, #fff);
-      border: 1.5px solid var(--border, #E2DDD6);
+      border: 1.5px solid var(--border, #D0D3E8);
       border-radius: 16px;
       padding: 22px 24px;
       box-shadow: 0 4px 20px rgba(0,0,0,.07);
@@ -516,7 +516,7 @@ function injectStyles() {
       gap: 12px;
       margin-bottom: 20px;
       padding-bottom: 16px;
-      border-bottom: 1px solid var(--border, #E2DDD6);
+      border-bottom: 1px solid var(--border, #D0D3E8);
     }
     .qc-form-icon { font-size: 1.75rem; line-height: 1; }
     .qc-form-title {
@@ -526,7 +526,7 @@ function injectStyles() {
     }
     .qc-form-subtitle {
       font-size: 0.75rem;
-      color: var(--text-muted, #A09890);
+      color: var(--text-muted, #8C91B0);
       margin-top: 2px;
     }
 
@@ -538,25 +538,25 @@ function injectStyles() {
       font-size: 0.65rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--text-secondary, #6B6560);
+      color: var(--text-secondary, #5A5F7A);
       margin-bottom: 6px;
     }
-    .req { color: #C0392B; }
+    .req { color: #BF0D3E; }
     .qc-input {
       width: 100%;
       padding: 8px 11px;
-      border: 1.5px solid var(--border, #E2DDD6);
+      border: 1.5px solid var(--border, #D0D3E8);
       border-radius: 8px;
       font-family: var(--font-body, sans-serif);
       font-size: 0.875rem;
-      color: var(--text-primary, #1A1714);
-      background: var(--bg, #F7F5F0);
+      color: var(--text-primary, #333333);
+      background: var(--bg, #E8EAF6);
       outline: none;
       transition: border-color 140ms, box-shadow 140ms;
     }
     .qc-input:focus {
-      border-color: var(--type-color, #2D5BE3);
-      box-shadow: 0 0 0 3px var(--type-bg, #EEF2FD);
+      border-color: var(--type-color, #001365);
+      box-shadow: 0 0 0 3px var(--type-bg, #E8EAF6);
       background: #fff;
     }
     .qc-select { cursor: pointer; }
@@ -576,11 +576,11 @@ function injectStyles() {
       align-items: center;
       gap: 3px;
       padding: 8px 4px;
-      border: 1.5px solid var(--border, #E2DDD6);
+      border: 1.5px solid var(--border, #D0D3E8);
       border-radius: 8px;
       font-size: 0.75rem;
-      color: var(--text-muted, #A09890);
-      background: var(--bg, #F7F5F0);
+      color: var(--text-muted, #8C91B0);
+      background: var(--bg, #E8EAF6);
       cursor: pointer;
       transition: all 140ms;
     }
@@ -600,7 +600,7 @@ function injectStyles() {
       justify-content: flex-end;
       margin-top: 18px;
       padding-top: 16px;
-      border-top: 1px solid var(--border, #E2DDD6);
+      border-top: 1px solid var(--border, #D0D3E8);
     }
     .qc-btn {
       display: inline-flex; align-items: center;
@@ -618,10 +618,10 @@ function injectStyles() {
     .qc-btn--primary:hover { opacity: 0.88; }
     .qc-btn--ghost {
       background: transparent;
-      color: var(--text-secondary, #6B6560);
-      border: 1.5px solid var(--border, #E2DDD6);
+      color: var(--text-secondary, #5A5F7A);
+      border: 1.5px solid var(--border, #D0D3E8);
     }
-    .qc-btn--ghost:hover { background: var(--bg, #F7F5F0); }
+    .qc-btn--ghost:hover { background: var(--bg, #E8EAF6); }
 
     /* ── Messages ────────────────────────────────────────── */
     .qc-msg {
@@ -669,7 +669,7 @@ function injectStyles() {
       font-size: 0.65rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--text-muted, #A09890);
+      color: var(--text-muted, #8C91B0);
       margin-bottom: 10px;
     }
     .qc-tags {
@@ -699,7 +699,7 @@ function injectStyles() {
     }
     .qc-tag-none {
       font-size: 0.8rem;
-      color: var(--text-muted, #A09890);
+      color: var(--text-muted, #8C91B0);
       font-style: italic;
     }
 

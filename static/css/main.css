@@ -7,23 +7,30 @@
 
 /* ── 1. Design Tokens ─────────────────────────────────────────── */
 :root {
-  /* Primary palette */
-  --color-primary:       #1C3F8F;   /* deep navy blue */
-  --color-primary-hover: #15317A;
-  --color-primary-light: #EBF0FB;
-  --color-primary-muted: #7A96D4;
+  /* ── Official DataLing palette ──────────────────────────────── */
+  --blue:      #001365;   /* azul principal */
+  --red:       #BF0D3E;   /* vermelho alertas / CTAs críticos */
+  --white:     #FFFFFF;
+  --blue-tint: #E8EAF6;   /* fundos de seção, linhas alternadas */
+  --text:      #333333;   /* texto principal */
+
+  /* Primary palette — aliases da paleta oficial */
+  --color-primary:       var(--blue);
+  --color-primary-hover: #00104d;   /* --blue 15% mais escuro */
+  --color-primary-light: var(--blue-tint);
+  --color-primary-muted: #7A8FCC;
 
   /* Neutrals */
-  --color-bg:            #F4F2EE;   /* warm light grey — never pure white */
-  --color-surface:       #FFFFFF;
-  --color-border:        #E0DBD4;
-  --color-border-strong: #C5BEB5;
+  --color-bg:            var(--blue-tint);  /* fundos de seção alternados */
+  --color-surface:       var(--white);
+  --color-border:        #D0D3E8;
+  --color-border-strong: #A8ADD4;
 
   /* Text */
-  --color-text:          #18160F;   /* near-black with warmth */
-  --color-text-secondary:#615C55;
-  --color-text-muted:    #9E9890;
-  --color-text-inverse:  #FFFFFF;
+  --color-text:          var(--text);
+  --color-text-secondary:#5A5F7A;
+  --color-text-muted:    #8C91B0;
+  --color-text-inverse:  var(--white);
 
   /* Feedback */
   --color-error:         #B91C1C;
@@ -84,9 +91,9 @@
   --duration: 160ms;
 
   /* Brand — DataLing identity */
-  --color-brand:       #001365;   /* navy azul */
-  --color-brand-light: #eef1f9;
-  --color-accent-red:  #BF0D3E;
+  --color-brand:       var(--blue);
+  --color-brand-light: var(--blue-tint);
+  --color-accent-red:  var(--red);
 }
 
 
@@ -529,11 +536,11 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .btn--primary {
   background: var(--color-primary);
   color: var(--color-text-inverse);
-  box-shadow: 0 1px 3px rgba(28,63,143,.25);
+  box-shadow: 0 1px 3px rgba(0,19,101,.25);
 }
 .btn--primary:hover {
   background: var(--color-primary-hover);
-  box-shadow: 0 4px 12px rgba(28,63,143,.3);
+  box-shadow: 0 4px 12px rgba(0,19,101,.3);
 }
 
 /* Ghost / Outline */
@@ -555,7 +562,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   border: 1.5px solid var(--color-error-border);
 }
 .btn--danger:hover {
-  background: #FEE2E2;
+  background: var(--color-error-bg);
   border-color: var(--color-error);
 }
 
@@ -621,7 +628,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
 /* Info */
 .message--info {
   background: var(--color-primary-light);
-  border-color: #BFCFEF;
+  border-color: rgba(0,19,101,.18);
   color: var(--color-primary);
 }
 
@@ -784,21 +791,21 @@ h1, h2, h3, h4 { line-height: 1.2; }
 }
 
 .stu-tab:hover {
-  border-color: var(--color-brand, #001365);
-  color: var(--color-brand, #001365);
-  background: var(--color-brand-light, #eef1f9);
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-tint);
 }
 
 .stu-tab--active {
-  border-color: var(--color-brand, #001365);
-  background: var(--color-brand, #001365);
-  color: #fff;
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--white);
   box-shadow: 0 2px 8px rgba(0, 19, 101, .25);
 }
 
 .stu-tab--active:hover {
-  background: var(--color-brand, #001365);
-  color: #fff;
+  background: var(--blue);
+  color: var(--white);
 }
 
 /* Badge de nível dentro da tab */
@@ -813,7 +820,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #fff;
+  color: var(--white);
   line-height: 1.6;
   flex-shrink: 0;
 }
@@ -829,7 +836,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--color-accent-red, #BF0D3E);
+  background: var(--red);
   flex-shrink: 0;
   animation: pulse-alert 2s ease infinite;
 }
@@ -926,7 +933,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   text-align: center;
   flex-shrink: 0;
   letter-spacing: .02em;
@@ -947,7 +954,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
 }
 .smo-bar-fill {
   height: 100%;
-  background: var(--color-brand, #001365);
+  background: var(--blue);
   border-radius: var(--radius-full);
   transition: width .4s var(--ease-out);
 }
@@ -968,7 +975,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   min-width: 36px;
   text-align: center;
 }
@@ -987,9 +994,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: var(--color-brand, #001365);
+  color: var(--blue);
   background: transparent;
-  border: 1.5px solid var(--color-brand, #001365);
+  border: 1.5px solid var(--blue);
   border-radius: var(--radius-full);
   padding: 2px 10px;
   cursor: pointer;
@@ -997,7 +1004,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   transition: background var(--duration), color var(--duration);
   flex-shrink: 0;
 }
-.smo-adjust-btn:hover { background: var(--color-brand, #001365); color: #fff; }
+.smo-adjust-btn:hover { background: var(--blue); color: var(--white); }
 
 .smo-override-form {
   margin-top: var(--space-4);
@@ -1033,10 +1040,10 @@ h1, h2, h3, h4 { line-height: 1.2; }
   transition: border-color var(--duration);
 }
 .smo-override-select:focus,
-.smo-override-input:focus  { border-color: var(--color-brand, #001365); }
+.smo-override-input:focus  { border-color: var(--blue); }
 .smo-override-error {
   font-size: var(--text-xs);
-  color: #BF0D3E;
+  color: var(--red);
   font-family: var(--font-mono);
   min-height: 1rem;
 }
@@ -1047,8 +1054,8 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-weight: 600;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--color-brand, #001365);
-  color: #fff;
+  background: var(--blue);
+  color: var(--white);
   cursor: pointer;
   transition: opacity var(--duration);
 }
@@ -1093,7 +1100,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--white);
   user-select: none;
   transition: opacity var(--duration);
 }
@@ -1223,8 +1230,8 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .pft-tab:hover:not(.pft-tab--active) { background: var(--color-brand-light); }
 
 .pft-tab--active {
-  background: var(--color-brand);
-  color: #fff;
+  background: var(--blue);
+  color: var(--white);
   box-shadow: 0 2px 8px rgba(0, 19, 101, .25);
 }
 
@@ -1275,8 +1282,8 @@ h1, h2, h3, h4 { line-height: 1.2; }
   gap: var(--space-2);
   padding: var(--space-2) var(--space-6);
   border-radius: var(--radius-md);
-  background: var(--color-accent-red);
-  color: #fff;
+  background: var(--red);
+  color: var(--white);
   font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -1430,7 +1437,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #001365;
+  color: var(--blue);
   text-align: right;
   grid-row: 1;
   grid-column: 2;
@@ -1448,7 +1455,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
 
 .anl-bar-fill {
   height: 100%;
-  background: #001365;
+  background: var(--blue);
   border-radius: 100px;
   transition: width 0.4s ease;
 }
@@ -1473,7 +1480,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #BF0D3E;
+  background: var(--red);
   flex-shrink: 0;
   align-self: center;
 }
@@ -1481,7 +1488,7 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .anl-alert-name {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #BF0D3E;
+  color: var(--red);
   flex: 1;
 }
 
