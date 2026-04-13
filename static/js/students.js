@@ -845,6 +845,12 @@ async function openStudentModal(s) {
     covBody.appendChild(_el("div", "smo-notice", "Erro ao carregar cobertura."));
   }
 
+  // ── BOTÃO EXPORTAR RELATÓRIO ──────────────────────────────
+  const exportBtn = _el("button", "smo-export-btn", "⬇ Exportar Relatório PDF");
+  exportBtn.title = "Gera relatório completo do aluno e abre diálogo de impressão";
+  exportBtn.addEventListener("click", () => exportStudentReport(s.id));
+  modal.appendChild(exportBtn);
+
   // ── TÓPICOS A DOMINAR (assíncrono) ────────────────────────
   const topicSec = _el("div", "smo-section");
   topicSec.appendChild(_el("div", "smo-section-title", "Tópicos a Dominar"));
@@ -906,6 +912,137 @@ async function openStudentModal(s) {
 
 
 // ─────────────────────────────────────────────────────────────
+// exportStudentReport(studentId)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Gera um relatório HTML do aluno e chama window.print() para exportar como PDF.
+ * Busca GET /api/students/<id>/report e abre uma nova janela com HTML formatado.
+ */
+async function exportStudentReport(studentId) {
+  let report;
+  try {
+    const res = await fetch(`${API_BASE}/students/${studentId}/report`);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    report = await res.json();
+  } catch (err) {
+    alert(`Não foi possível gerar o relatório: ${err.message}`);
+    return;
+  }
+
+  const s    = report.student;
+  const lvl  = s.overall_level || "—";
+  const conf = s.confidence != null ? `${Math.round(s.confidence * 100)}%` : "—";
+  const today = new Date().toLocaleDateString("pt-BR");
+
+  // ── Nível por habilidade ──────────────────────────────────
+  const aspectRows = Object.entries(report.aspect_levels || {}).map(([skill, level]) =>
+    `<tr><td>${skill}</td><td><strong>${level || "—"}</strong></td></tr>`
+  ).join("");
+
+  // ── Domain mastery ────────────────────────────────────────
+  const domainRows = Object.entries(report.domain_mastery || {}).map(([dom, avg]) =>
+    `<tr><td>${dom}</td><td>${Math.round(avg * 100)}%</td></tr>`
+  ).join("");
+
+  // ── Atividade semanal ─────────────────────────────────────
+  const weekRows = (report.weekly_activity || []).map(w =>
+    `<tr><td>${w.week}</td><td>${w.event_count}</td><td>${w.avg_polarity > 0 ? "+" : ""}${w.avg_polarity}</td></tr>`
+  ).join("");
+
+  // ── Gaps resolvidos ───────────────────────────────────────
+  const resolvedRows = (report.resolved_gaps || []).slice(0, 10).map(g =>
+    `<tr><td>${g.skill_id}</td><td>${g.skill_domain}</td><td>${g.cefr_target}</td><td>${Math.round(g.mastery_score * 100)}%</td></tr>`
+  ).join("");
+
+  // ── Prioridades ───────────────────────────────────────────
+  const priorityRows = (report.top_priorities || []).map(p =>
+    `<tr><td>${p.skill_id}</td><td>${p.skill_domain || "—"}</td><td>${Math.round((1 - (p.mastery_score || 0)) * 100)}%</td></tr>`
+  ).join("");
+
+  // ── Recomendações ─────────────────────────────────────────
+  const recList = (report.recommendations || []).map(r =>
+    `<li>${r}</li>`
+  ).join("") || "<li>Nenhuma recomendação disponível.</li>";
+
+  // ── Sessões ───────────────────────────────────────────────
+  const sessionRows = (report.sessions || []).slice(0, 20).map(ss => {
+    const d = ss.session_date ? new Date(ss.session_date).toLocaleDateString("pt-BR") : "—";
+    return `<tr><td>${d}</td><td>${ss.session_type}</td><td>${ss.duration_minutes ? ss.duration_minutes + " min" : "—"}</td></tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório — ${s.name}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; font-size: 13px; color: #1a1a1a; padding: 32px 40px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 12px; margin-bottom: 24px; }
+  .badge { display: inline-block; background: #001365; color: #fff;
+           padding: 2px 12px; border-radius: 4px; font-size: 18px;
+           font-weight: bold; margin-right: 8px; }
+  .conf { color: #444; font-size: 12px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;
+       border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 20px 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f4f4f4; text-align: left; padding: 4px 8px; border: 1px solid #ddd; }
+  td { padding: 4px 8px; border: 1px solid #eee; }
+  tr:nth-child(even) td { background: #fafafa; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  .footer { margin-top: 32px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<h1>${s.name}</h1>
+<div class="subtitle">
+  Relatório gerado em ${today}
+  ${s.job_title ? " · " + s.job_title : ""}
+  ${s.target_level ? " · Meta: " + s.target_level : ""}
+</div>
+
+<h2>Nível CEFR Estimado</h2>
+<p><span class="badge">${lvl}</span><span class="conf">Confiança: ${conf}</span></p>
+
+<h2>Nível por Habilidade</h2>
+<table><tr><th>Habilidade</th><th>Nível</th></tr>${aspectRows || "<tr><td colspan=2>—</td></tr>"}</table>
+
+<h2>Domínio por Área</h2>
+<table><tr><th>Domínio</th><th>Mastery médio</th></tr>${domainRows || "<tr><td colspan=2>—</td></tr>"}</table>
+
+<h2>Atividade Semanal (últimas 12 semanas)</h2>
+<table><tr><th>Semana</th><th>Eventos</th><th>Polaridade média</th></tr>${weekRows || "<tr><td colspan=3>Sem dados.</td></tr>"}</table>
+
+<h2>Pontos Fortes (gaps resolvidos)</h2>
+<table><tr><th>Skill</th><th>Domínio</th><th>CEFR</th><th>Mastery</th></tr>${resolvedRows || "<tr><td colspan=4>Nenhum gap resolvido ainda.</td></tr>"}</table>
+
+<h2>Prioridades de Estudo</h2>
+<table><tr><th>Skill</th><th>Domínio</th><th>Gap</th></tr>${priorityRows || "<tr><td colspan=3>—</td></tr>"}</table>
+
+<h2>Recomendações para o Próximo Nível</h2>
+<ul>${recList}</ul>
+
+<h2>Sessões Aplicadas</h2>
+<table><tr><th>Data</th><th>Tipo</th><th>Duração</th></tr>${sessionRows || "<tr><td colspan=3>Nenhuma sessão registrada.</td></tr>"}</table>
+
+<div class="footer">DataLing · Relatório gerado automaticamente · ${today}</div>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) { alert("Permita pop-ups para exportar o relatório."); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // Exports  (compatível com módulos ES e com script tag clássica)
 // ─────────────────────────────────────────────────────────────
 
@@ -917,6 +1054,7 @@ window.cancelAddStudent    = cancelAddStudent;
 window.saveStudent         = saveStudent;
 window.showStudentProfile  = showStudentProfile;
 window.openStudentModal    = openStudentModal;
+window.exportStudentReport = exportStudentReport;
 
 // Export ES module para quando o arquivo for importado via import()
 export default function init(container, actionsBar) {

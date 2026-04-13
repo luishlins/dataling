@@ -24,6 +24,13 @@ class TestItem(db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
+    # ── IRT / calibration fields ──────────────────────────────
+    irt_difficulty      = db.Column(db.Float, nullable=True)   # b parameter (logit scale)
+    irt_discrimination  = db.Column(db.Float, nullable=True)   # a parameter
+    response_count      = db.Column(db.Integer, nullable=False, default=0)
+    correct_count       = db.Column(db.Integer, nullable=False, default=0)
+    empirical_difficulty = db.Column(db.Float, nullable=True)  # 1 − p_correct
+
     skills_tested = db.relationship(
         "SkillNode", secondary=test_item_skills, lazy="select"
     )
@@ -39,6 +46,11 @@ class TestItem(db.Model):
             "vocab_targets": self.vocab_targets,
             "distractor_rationale": self.distractor_rationale,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "irt_difficulty": self.irt_difficulty,
+            "irt_discrimination": self.irt_discrimination,
+            "response_count": self.response_count,
+            "correct_count": self.correct_count,
+            "empirical_difficulty": self.empirical_difficulty,
         }
 
     def __repr__(self) -> str:

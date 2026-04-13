@@ -1,14 +1,16 @@
 import json as _json
+from collections import defaultdict
 
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 from extensions import db
 from models import Student
 from models.evidence_event import EvidenceEvent
 from models.student_skill_state import StudentSkillState
 from models.skill_node import SkillNode
+from models.test_session import TestSession
 from services.level_estimator import compute_level_estimate, compute_all_skill_estimates, compute_evidence_coverage
 from services.gap_analyzer import compute_aspect_gaps, compute_next_level_distance, compute_skill_gap
 
@@ -426,3 +428,145 @@ def get_level_overrides(id):
 
     except SQLAlchemyError as e:
         return jsonify({"error": "Erro ao consultar o banco de dados.", "details": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# GET /api/students/<id>/report
+# ──────────────────────────────────────────────
+@students_bp.route("/students/<int:id>/report", methods=["GET"])
+def get_student_report(id):
+    """
+    Relatório completo do aluno para exportação PDF.
+
+    Retorna:
+      student          — dados básicos + nível geral + confiança
+      aspect_levels    — nível CEFR por macro-habilidade
+      weekly_activity  — últimas 12 semanas: contagem de eventos e polaridade média
+      domain_mastery   — mastery médio por skill_domain
+      sessions         — histórico de sessões aplicadas
+      resolved_gaps    — skills com success_streak >= 3 (pontos fortes)
+      top_priorities   — top 5 skills com maior gap (a melhorar)
+      recommendations  — study_targets do próximo nível
+    """
+    try:
+        student = db.session.get(Student, id)
+        if student is None:
+            return jsonify({"error": f"Aluno com id {id} não encontrado."}), 404
+
+        # ── Nível geral ──────────────────────────────────────
+        overall_est  = compute_level_estimate(id, db.session)
+        skill_est    = compute_all_skill_estimates(id, db.session)
+
+        student_data = student.to_dict()
+        student_data["overall_level"] = overall_est["overall_level"]
+        student_data["confidence"]    = round(overall_est["confidence"], 4)
+
+        aspect_levels = {
+            "Listening": skill_est["listening"]["overall_level"],
+            "Speaking":  skill_est["speaking"]["overall_level"],
+            "Reading":   skill_est["reading"]["overall_level"],
+            "Writing":   skill_est["writing"]["overall_level"],
+        }
+
+        # ── Atividade semanal (últimas 12 semanas) ────────────
+        twelve_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=12)
+        events = (
+            db.session.query(EvidenceEvent)
+            .filter(
+                EvidenceEvent.student_id == id,
+                EvidenceEvent.timestamp >= twelve_weeks_ago,
+            )
+            .order_by(EvidenceEvent.timestamp.asc())
+            .all()
+        )
+
+        week_buckets = defaultdict(lambda: {"count": 0, "polarity_sum": 0})
+        for ev in events:
+            ts = ev.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            iso_week = ts.strftime("%G-W%V")   # e.g. "2026-W15"
+            week_buckets[iso_week]["count"]        += 1
+            week_buckets[iso_week]["polarity_sum"] += ev.polarity
+
+        weekly_activity = [
+            {
+                "week":          wk,
+                "event_count":   v["count"],
+                "avg_polarity":  round(v["polarity_sum"] / v["count"], 2) if v["count"] else 0,
+            }
+            for wk, v in sorted(week_buckets.items())
+        ]
+
+        # ── Domínio de mastery por skill_domain ──────────────
+        states = (
+            db.session.query(StudentSkillState)
+            .filter_by(student_id=id)
+            .join(StudentSkillState.skill)
+            .all()
+        )
+
+        domain_sums   = defaultdict(lambda: {"total": 0.0, "count": 0})
+        for st in states:
+            d = st.skill.skill_domain
+            domain_sums[d]["total"] += st.mastery_score
+            domain_sums[d]["count"] += 1
+
+        domain_mastery = {
+            domain: round(v["total"] / v["count"], 4)
+            for domain, v in domain_sums.items()
+            if v["count"] > 0
+        }
+
+        # ── Sessões aplicadas ─────────────────────────────────
+        sessions = (
+            db.session.query(TestSession)
+            .filter_by(student_id=id)
+            .order_by(TestSession.session_date.desc())
+            .all()
+        )
+        sessions_data = [s.to_dict() for s in sessions]
+
+        # ── Gaps resolvidos (success_streak >= 3) ─────────────
+        resolved = [
+            {
+                "skill_id":    st.skill_id,
+                "skill_domain": st.skill.skill_domain,
+                "cefr_target": st.skill.cefr_target,
+                "mastery_score": round(st.mastery_score, 4),
+                "success_streak": st.success_streak,
+            }
+            for st in states
+            if st.success_streak >= 3
+        ]
+        resolved.sort(key=lambda x: x["mastery_score"], reverse=True)
+
+        # ── Top 5 prioridades ─────────────────────────────────
+        skill_gaps = compute_skill_gap(id, db.session)
+        top_priorities = skill_gaps[:5]
+
+        # ── Recomendações (study_targets do próximo nível) ────
+        current_level = overall_est["overall_level"]
+        recommendations = []
+        if current_level:
+            dist = compute_next_level_distance(id, current_level, db.session)
+            for skill_id in dist.get("study_targets", []):
+                skill = db.session.query(SkillNode).filter_by(skill_id=skill_id).first()
+                recommendations.append(
+                    skill.examples if skill and skill.examples
+                    else (f"{skill.skill_domain} — {skill.cefr_target}" if skill else skill_id)
+                )
+
+        return jsonify({
+            "student":         student_data,
+            "aspect_levels":   aspect_levels,
+            "weekly_activity": weekly_activity,
+            "domain_mastery":  domain_mastery,
+            "sessions":        sessions_data,
+            "resolved_gaps":   resolved,
+            "top_priorities":  top_priorities,
+            "recommendations": recommendations,
+        }), 200
+
+    except SQLAlchemyError as e:
+        return jsonify({"error": "Erro ao gerar relatório.", "details": str(e)}), 500

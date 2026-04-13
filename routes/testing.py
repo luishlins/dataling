@@ -503,6 +503,66 @@ def next_item(session_id):
         return jsonify({"error": "Erro ao selecionar próximo item.", "details": str(e)}), 500
 
 
+# ─────────────────────────────────────────────────────────────
+# POST /testing/calibrate-items
+# ─────────────────────────────────────────────────────────────
+
+@testing_bp.route("/testing/calibrate-items", methods=["POST"])
+def calibrate_items():
+    """
+    Recalcula metadados de calibração para todos os TestItems que têm respostas.
+
+    Para cada item:
+      response_count       = nº total de respostas (TestSessionResult)
+      correct_count        = nº de respostas corretas
+      empirical_difficulty = 1 − correct_count / response_count
+
+    Resposta 200:
+      { "calibrated": N, "skipped": M }
+      (skipped = itens sem nenhuma resposta)
+    """
+    from models.test_session import TestSessionResult as _TSR
+    from sqlalchemy import func
+
+    try:
+        # Agrega por item_id: total e corretos
+        agg = (
+            db.session.query(
+                _TSR.item_id,
+                func.count(_TSR.id).label("total"),
+                func.sum(db.cast(_TSR.is_correct, db.Integer)).label("correct"),
+            )
+            .group_by(_TSR.item_id)
+            .all()
+        )
+
+        calibrated = 0
+        skipped    = 0
+
+        all_items = db.session.query(TestItem).all()
+        agg_map = {row.item_id: row for row in agg}
+
+        for item in all_items:
+            row = agg_map.get(item.id)
+            if row is None or row.total == 0:
+                skipped += 1
+                continue
+
+            item.response_count = int(row.total)
+            item.correct_count  = int(row.correct or 0)
+            item.empirical_difficulty = round(
+                1.0 - item.correct_count / item.response_count, 4
+            )
+            calibrated += 1
+
+        db.session.commit()
+        return jsonify({"calibrated": calibrated, "skipped": skipped}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao calibrar itens.", "details": str(e)}), 500
+
+
 import csv
 import io as _io
 
