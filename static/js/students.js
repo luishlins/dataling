@@ -803,6 +803,48 @@ async function openStudentModal(s) {
   aspectSec.appendChild(aspectGrid);
   modal.appendChild(aspectSec);
 
+  // ── COBERTURA DE EVIDÊNCIAS (assíncrono) ─────────────────
+  const covSec = _el("div", "smo-section");
+  covSec.appendChild(_el("div", "smo-section-title", "Cobertura de Evidências"));
+  const covBody = _el("div", "smo-cov-body");
+  covBody.appendChild(_el("div", "smo-loading-inline", "Carregando…"));
+  covSec.appendChild(covBody);
+  modal.appendChild(covSec);
+
+  try {
+    const estRes = await fetch(`${API_BASE}/students/${s.id}/level-estimate`);
+    covBody.innerHTML = "";
+    if (estRes.ok) {
+      const estData = await estRes.json();
+      const coverage = estData.evidence_coverage || {};
+      const COV_SKILLS = [
+        { key: "Listening", letter: "L" },
+        { key: "Speaking",  letter: "S" },
+        { key: "Reading",   letter: "R" },
+        { key: "Writing",   letter: "W" },
+      ];
+      const covGrid = _el("div", "smo-cov-grid");
+      COV_SKILLS.forEach(({ key, letter }) => {
+        const status = coverage[key] || "missing";
+        const chip = _el("div", "smo-cov-chip smo-cov-chip--" + status, letter);
+        if (status === "missing") {
+          chip.title = `Sem evidências de ${key}. Registre no Reporting.`;
+        }
+        const lbl = _el("div", "smo-cov-label", key);
+        const cell = _el("div", "smo-cov-cell");
+        cell.appendChild(chip);
+        cell.appendChild(lbl);
+        covGrid.appendChild(cell);
+      });
+      covBody.appendChild(covGrid);
+    } else {
+      covBody.appendChild(_el("div", "smo-notice", "Cobertura indisponível."));
+    }
+  } catch {
+    covBody.innerHTML = "";
+    covBody.appendChild(_el("div", "smo-notice", "Erro ao carregar cobertura."));
+  }
+
   // ── TÓPICOS A DOMINAR (assíncrono) ────────────────────────
   const topicSec = _el("div", "smo-section");
   topicSec.appendChild(_el("div", "smo-section-title", "Tópicos a Dominar"));

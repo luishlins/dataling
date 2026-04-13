@@ -1067,6 +1067,50 @@ h1, h2, h3, h4 { line-height: 1.2; }
 }
 .smo-override-cancel:hover { background: var(--color-border); }
 
+/* ── Evidence Coverage Meter ─────────────────────────────── */
+.smo-cov-body { padding: var(--space-2) 0; }
+
+.smo-cov-grid {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.smo-cov-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.smo-cov-chip {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  user-select: none;
+  transition: opacity var(--duration);
+}
+
+.smo-cov-chip--covered { background: #2E7D32; }
+.smo-cov-chip--stale   { background: #E65100; }
+.smo-cov-chip--missing { background: #B71C1C; cursor: help; }
+.smo-cov-chip--missing:hover { opacity: 0.85; }
+
+.smo-cov-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+}
+
 /* Inline states */
 .smo-loading-inline {
   font-family: var(--font-mono);
@@ -1304,7 +1348,156 @@ h1, h2, h3, h4 { line-height: 1.2; }
 }
 
 
-/* ── 17. Responsive ───────────────────────────────────────────── */
+/* ── 17. Analytics ───────────────────────────────────────────── */
+.anl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.anl-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 24px 24px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.anl-card-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.anl-card-sub {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin-top: -6px;
+}
+
+.anl-legend {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.anl-empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Block 3 — Progress rows */
+.anl-prog-row {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.anl-prog-row:last-child { border-bottom: none; }
+
+.anl-prog-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.anl-prog-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.anl-prog-level {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.anl-prog-pct {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #001365;
+  text-align: right;
+  grid-row: 1;
+  grid-column: 2;
+  align-self: center;
+}
+
+.anl-bar-wrap {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 100px;
+  overflow: hidden;
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+
+.anl-bar-fill {
+  height: 100%;
+  background: #001365;
+  border-radius: 100px;
+  transition: width 0.4s ease;
+}
+
+/* Block 4 — Inactivity alerts */
+.anl-alert-ok {
+  font-size: 0.875rem;
+  color: var(--color-success);
+  padding: 8px 0;
+}
+
+.anl-alert-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.anl-alert-row:last-child { border-bottom: none; }
+
+.anl-alert-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #BF0D3E;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.anl-alert-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #BF0D3E;
+  flex: 1;
+}
+
+.anl-alert-detail {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .anl-grid { grid-template-columns: 1fr; }
+}
+
+
+/* ── 18. Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root {
     --content-pad: var(--space-4);

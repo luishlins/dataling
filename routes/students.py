@@ -9,7 +9,7 @@ from models import Student
 from models.evidence_event import EvidenceEvent
 from models.student_skill_state import StudentSkillState
 from models.skill_node import SkillNode
-from services.level_estimator import compute_level_estimate, compute_all_skill_estimates
+from services.level_estimator import compute_level_estimate, compute_all_skill_estimates, compute_evidence_coverage
 from services.gap_analyzer import compute_aspect_gaps, compute_next_level_distance, compute_skill_gap
 
 students_bp = Blueprint("students", __name__)
@@ -254,6 +254,9 @@ def get_student_level_estimate(id):
         # Estimativas por macro-habilidade
         skill_estimates = compute_all_skill_estimates(id, db.session)
 
+        # Cobertura de evidências por macro-habilidade
+        coverage = compute_evidence_coverage(id, db.session)
+
         # Formata resposta
         response = {
             "overall": {
@@ -276,7 +279,8 @@ def get_student_level_estimate(id):
             "writing": {
                 "level": skill_estimates["writing"]["overall_level"],
                 "confidence": skill_estimates["writing"]["confidence"]
-            }
+            },
+            "evidence_coverage": coverage,
         }
 
         return jsonify(response), 200

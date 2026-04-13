@@ -1,5 +1,7 @@
+from datetime import datetime, timezone, timedelta
+
 from models.student_skill_state import StudentSkillState
-from models.evidence_event import EvidenceEvent
+from models.evidence_event import EvidenceEvent, evidence_skill_tags
 from models.skill_node import SkillNode
 
 
@@ -69,6 +71,54 @@ def compute_level_estimate(student_id, db_session, skill_domains=None):
         'confidence': confidence,
         'fit_scores_by_level': fit_scores_by_level
     }
+
+
+def compute_evidence_coverage(student_id, db_session):
+    """
+    Para cada macro-habilidade, retorna:
+    - "covered": tem EvidenceEvent com skill_tag no domínio correspondente nos últimos 30 dias
+    - "stale":   tem evidência, mas com mais de 30 dias
+    - "missing": sem nenhuma evidência nos domínios correspondentes
+
+    Mapeamento macro → skill_domains:
+      Listening → ["listening"]
+      Speaking  → ["phonology", "discourse"]
+      Reading   → ["reading"]
+      Writing   → ["writing"]
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+    macro_map = {
+        "Listening": ["listening"],
+        "Speaking":  ["phonology", "discourse"],
+        "Reading":   ["reading"],
+        "Writing":   ["writing"],
+    }
+
+    result = {}
+
+    for macro, domains in macro_map.items():
+        latest = (
+            db_session.query(EvidenceEvent)
+            .join(evidence_skill_tags, evidence_skill_tags.c.evidence_id == EvidenceEvent.id)
+            .join(SkillNode, SkillNode.skill_id == evidence_skill_tags.c.skill_id)
+            .filter(
+                EvidenceEvent.student_id == student_id,
+                SkillNode.skill_domain.in_(domains),
+            )
+            .order_by(EvidenceEvent.timestamp.desc())
+            .first()
+        )
+
+        if latest is None:
+            result[macro] = "missing"
+        else:
+            ts = latest.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            result[macro] = "covered" if ts >= cutoff else "stale"
+
+    return result
 
 
 def compute_all_skill_estimates(student_id, db_session):
