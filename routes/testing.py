@@ -404,7 +404,11 @@ def classify_text_route():
 # POST /testing/items/import-csv
 # ─────────────────────────────────────────────────────────────
 
-from services.test_targeter import select_items_for_session, compute_item_relevance
+from services.test_targeter import (
+    select_items_for_session,
+    compute_item_relevance,
+    select_next_item_adaptive,
+)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -445,6 +449,58 @@ def suggest_items(student_id):
 
     except Exception as e:  # noqa: BLE001
         return jsonify({"error": "Erro ao calcular sugestões.", "details": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────
+# POST /testing/sessions/<session_id>/next-item
+# ─────────────────────────────────────────────────────────────
+
+@testing_bp.route("/testing/sessions/<int:session_id>/next-item", methods=["POST"])
+def next_item(session_id):
+    """
+    Retorna o próximo item para uma sessão CAT, ajustando o nível estimado.
+
+    Payload obrigatório:
+      last_answer_correct      — bool
+      current_level_estimate   — str (ex: "B1", "B1+")
+
+    Resposta 200:
+      {
+        "next_item": { ...item_fields, relevance_score: float } | null,
+        "current_level_estimate": "B1+"
+      }
+    """
+    session = db.session.get(TestSession, session_id)
+    if session is None:
+        return jsonify({"error": f"Sessão com id {session_id} não encontrada."}), 404
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "O corpo da requisição deve ser um JSON válido."}), 400
+
+    if "last_answer_correct" not in data or not isinstance(data["last_answer_correct"], bool):
+        return jsonify({"error": "'last_answer_correct' obrigatório (true ou false)."}), 400
+
+    current_level = (data.get("current_level_estimate") or "B1").strip()
+
+    try:
+        item, adjusted_level = select_next_item_adaptive(
+            student_id=session.student_id,
+            session_id=session_id,
+            last_answer_correct=data["last_answer_correct"],
+            current_level_estimate=current_level,
+            db_session=db.session,
+        )
+
+        if item is None:
+            return jsonify({"next_item": None, "current_level_estimate": adjusted_level}), 200
+
+        d = item.to_dict()
+        d["relevance_score"] = round(compute_item_relevance(session.student_id, item.id, db.session), 4)
+        return jsonify({"next_item": d, "current_level_estimate": adjusted_level}), 200
+
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": "Erro ao selecionar próximo item.", "details": str(e)}), 500
 
 
 import csv

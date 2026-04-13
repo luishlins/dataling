@@ -2191,10 +2191,10 @@ async function startReadingSession() {
       body: JSON.stringify({ student_id: studentId, session_type: "ReadingMCQ" }),
     });
 
-    // 3. Fetch targeted items via suggest-items (ranked by relevance, CEFR ±1)
-    let items = await apiFetch(`/testing/suggest-items/${studentId}?session_type=ReadingMCQ&n=5`).catch(() => []);
+    // 3. Fetch first item via suggest-items; CAT selects subsequent ones adaptively
+    const suggested = await apiFetch(`/testing/suggest-items/${studentId}?session_type=ReadingMCQ&n=1`).catch(() => []);
 
-    if (!items.length) {
+    if (!suggested.length) {
       if (panel) panel.innerHTML = `
         <div class="tst-empty">
           <div class="tst-empty-icon">📖</div>
@@ -2203,7 +2203,16 @@ async function startReadingSession() {
       return;
     }
 
-    _readingState = { sessionId: session.id, items, current: 0, correct: 0, level, studentId };
+    _readingState = {
+      sessionId: session.id,
+      items: [suggested[0]],
+      current: 0,
+      correct: 0,
+      level,
+      studentId,
+      currentLevelEstimate: level,  // tracks CAT level in real time
+      maxItems: 10,
+    };
     showReadingItem();
 
   } catch (err) {
@@ -2214,8 +2223,9 @@ async function startReadingSession() {
 }
 
 function showReadingItem() {
-  const { items, current, sessionId } = _readingState;
+  const { items, current, sessionId, maxItems, currentLevelEstimate } = _readingState;
   const item = items[current];
+  const total = maxItems || items.length;
 
   // Split content into base text and question (separated by "\n\n---\n\n")
   const SEP    = "\n\n---\n\n";
@@ -2227,7 +2237,7 @@ function showReadingItem() {
   try { options = JSON.parse(item.options); } catch { options = []; }
 
   const LETTERS = ["A", "B", "C", "D", "E"];
-  const pct     = Math.round((current / items.length) * 100);
+  const pct     = Math.round((current / total) * 100);
 
   const optionsHTML = options.map((opt, i) => {
     const letter = LETTERS[i] ?? String(i + 1);
@@ -2244,7 +2254,7 @@ function showReadingItem() {
         <div class="reading-progress-bar">
           <div class="reading-progress-fill" style="width:${pct}%"></div>
         </div>
-        <span class="reading-progress-label">${current + 1} / ${items.length}</span>
+        <span class="reading-progress-label">${current + 1} / ${total}</span>
       </div>
       <div class="reading-meta">
         <span class="tst-chip tst-chip--blue">ReadingMCQ</span>
@@ -2252,7 +2262,10 @@ function showReadingItem() {
         ${item.relevance_score != null
           ? `<span class="tst-chip tst-chip--green" title="Targeted relevance score">Relevância: ${Number(item.relevance_score).toFixed(2)}</span>`
           : ""}
-        <span style="font-family:var(--font-mono,monospace);font-size:0.65rem;color:var(--text-muted,#A09890);margin-left:auto">
+        ${currentLevelEstimate
+          ? `<span class="tst-chip tst-chip--blue" title="CAT level estimate" style="font-weight:700;margin-left:auto">📊 ${currentLevelEstimate}</span>`
+          : `<span style="margin-left:auto"></span>`}
+        <span style="font-family:var(--font-mono,monospace);font-size:0.65rem;color:var(--text-muted,#A09890)">
           Session #${sessionId}
         </span>
       </div>
@@ -2279,7 +2292,7 @@ async function recordReadingAnswer(letter) {
   const item  = state.items[state.current];
   const isCorrect = letter.toUpperCase() === item.correct_answer.toUpperCase();
 
-  // Visual feedback — highlight chosen option and reveal correct answer
+  // 1. Immediate visual feedback — highlight chosen option and reveal correct answer
   document.querySelectorAll(".reading-option-btn").forEach(btn => {
     btn.disabled = true;
     const btnLetter = btn.querySelector(".reading-option-letter")?.textContent?.trim();
@@ -2289,28 +2302,59 @@ async function recordReadingAnswer(letter) {
 
   if (isCorrect) state.correct++;
 
-  // POST result to API (non-blocking — test advances regardless)
-  apiFetch(`/testing/sessions/${state.sessionId}/results`, {
+  // 2. Fire result POST (non-blocking during the feedback pause)
+  const resultPost = apiFetch(`/testing/sessions/${state.sessionId}/results`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ item_id: item.id, student_answer: letter, is_correct: isCorrect }),
   }).catch(err => console.warn("Result POST failed:", err));
 
-  // Advance after brief pause so professor sees the highlight
-  setTimeout(() => {
-    state.current++;
-    if (state.current >= state.items.length) showReadingResultSummary();
-    else showReadingItem();
-  }, 700);
+  // 3. Hold for professor to see the highlight, then ensure result is persisted
+  await new Promise(resolve => setTimeout(resolve, 700));
+  await resultPost;
+
+  // 4. Advance counter
+  state.current++;
+
+  // 5. Stop if max items reached
+  if (state.current >= state.maxItems) {
+    showReadingResultSummary();
+    return;
+  }
+
+  // 6. Fetch next item adaptively (CAT)
+  try {
+    const resp = await apiFetch(`/testing/sessions/${state.sessionId}/next-item`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        last_answer_correct: isCorrect,
+        current_level_estimate: state.currentLevelEstimate,
+      }),
+    });
+
+    state.currentLevelEstimate = resp.current_level_estimate;
+
+    if (resp.next_item) {
+      state.items.push(resp.next_item);
+      showReadingItem();
+    } else {
+      showReadingResultSummary();
+    }
+  } catch (err) {
+    console.warn("next-item failed:", err);
+    showReadingResultSummary();
+  }
 }
 
 function showReadingResultSummary() {
-  const { correct, items, level, sessionId } = _readingState;
+  const { correct, items, level, sessionId, currentLevelEstimate } = _readingState;
   const total = items.length;
   const pct   = total ? Math.round((correct / total) * 100) : 0;
+  const finalLevel = currentLevelEstimate || level;
 
   // Persist for sessionResults banner and future summary re-use
-  _sessionResults.Reading = { correct, total, pct, level, sessionId };
+  _sessionResults.Reading = { correct, total, pct, level: finalLevel, sessionId };
   if (!_testStartTime) _testStartTime = new Date();
   _readingState = null;
 
@@ -2319,7 +2363,7 @@ function showReadingResultSummary() {
       <div class="reading-summary-score">${correct}/${total}</div>
       <div class="reading-summary-label">Reading: ${correct}/${total} acertos (${pct}%)</div>
       <p style="font-size:0.8rem;color:var(--text-muted,#A09890);font-family:var(--font-mono,monospace);margin:0 0 28px">
-        Session #${sessionId} · Level ${level}
+        Session #${sessionId} · CAT estimate: ${finalLevel}
       </p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="tst-btn tst-btn--primary" onclick="TST.startReadingTest()">📖 New Test</button>

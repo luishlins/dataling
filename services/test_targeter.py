@@ -4,10 +4,15 @@ from datetime import datetime, timezone, timedelta
 from models.student_skill_state import StudentSkillState
 from models.test_item import TestItem
 from models.advised_vocab import AdvisedVocabItem
-from models.test_session import TestSessionResult
+from models.test_session import TestSession, TestSessionResult
 from services.level_estimator import compute_level_estimate
 
 _CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+
+# Sub-levels used by the CAT engine (half-step granularity)
+# Index: 0=A1, 1=A1+, 2=A2, 3=A2+, 4=B1, 5=B1+, 6=B2, 7=B2+, 8=C1, 9=C1+, 10=C2
+_SUBLEVELS = ['A1', 'A1+', 'A2', 'A2+', 'B1', 'B1+', 'B2', 'B2+', 'C1', 'C1+', 'C2']
+_SUBLEVEL_IDX = {lvl: i for i, lvl in enumerate(_SUBLEVELS)}
 
 
 def compute_item_relevance(student_id, item_id, db_session) -> float:
@@ -124,3 +129,103 @@ def select_items_for_session(student_id, session_type, n_items, db_session) -> l
     scored.sort(key=lambda x: x[1], reverse=True)
 
     return [item for item, _ in scored[:n_items]]
+
+
+# ─────────────────────────────────────────────────────────────
+# CAT helpers
+# ─────────────────────────────────────────────────────────────
+
+def adjust_level_estimate(level_str: str, correct: bool) -> str:
+    """
+    Ajusta o nível estimado em ±0.5 sub-nível (ex: B1 → B1+ ou B1 → A2+).
+    Aceita tanto níveis padrão ('B1') quanto subníveis ('B1+').
+    Retorna o novo sub-nível como string.
+    """
+    idx = _SUBLEVEL_IDX.get(level_str, 4)  # default B1
+    idx = max(0, min(len(_SUBLEVELS) - 1, idx + (1 if correct else -1)))
+    return _SUBLEVELS[idx]
+
+
+def _allowed_cefr_for_sublevel(sublevel: str) -> set:
+    """
+    Retorna o conjunto de target_cefr (níveis padrão) compatíveis com o sub-nível.
+
+    Sub-nível padrão (A1, A2 …): permite ±1 nível CEFR (3 valores).
+    Sub-nível misto (A1+, B1+ …): permite os dois níveis adjacentes (2 valores).
+    """
+    idx = _SUBLEVEL_IDX.get(sublevel, 4)
+    if idx % 2 == 0:
+        cefr_idx = idx // 2
+        return {_CEFR_LEVELS[i] for i in range(max(0, cefr_idx - 1), min(len(_CEFR_LEVELS), cefr_idx + 2))}
+    else:
+        lower = _CEFR_LEVELS[idx // 2]
+        upper = _CEFR_LEVELS[min(idx // 2 + 1, len(_CEFR_LEVELS) - 1)]
+        return {lower, upper}
+
+
+def select_next_item_adaptive(
+    student_id: int,
+    session_id: int,
+    last_answer_correct: bool,
+    current_level_estimate: str,
+    db_session,
+) -> tuple:
+    """
+    Seleciona adaptativamente o próximo item para uma sessão CAT.
+
+    1. Ajusta current_level_estimate em ±0.5 sub-nível com base em last_answer_correct.
+    2. Filtra itens:
+       - Mesmo item_type da sessão.
+       - target_cefr próximo ao nível ajustado.
+       - Não aplicados nessa sessão (excluídos via TestSessionResult).
+       - Não aplicados ao aluno nos últimos 7 dias (qualquer sessão).
+    3. Retorna o item com maior relevance_score.
+
+    Retorna: (TestItem | None, adjusted_level_str)
+    """
+    adjusted = adjust_level_estimate(current_level_estimate, last_answer_correct)
+    allowed_cefr = _allowed_cefr_for_sublevel(adjusted)
+
+    # Tipo de item da sessão atual
+    session = db_session.get(TestSession, session_id)
+    item_type = session.session_type if session else None
+
+    # IDs já respondidos nesta sessão
+    used_in_session = {
+        row[0]
+        for row in db_session.query(TestSessionResult.item_id)
+        .filter_by(session_id=session_id)
+        .all()
+    }
+
+    # IDs respondidos pelo aluno nos últimos 7 dias (qualquer sessão)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    recent_ids = {
+        row[0]
+        for row in db_session.query(TestSessionResult.item_id)
+        .join(TestSessionResult.session)
+        .filter(
+            TestSession.student_id == student_id,
+            TestSessionResult.answered_at >= cutoff,
+        )
+        .all()
+    }
+
+    excluded = used_in_session | recent_ids
+
+    query = db_session.query(TestItem).filter(TestItem.target_cefr.in_(allowed_cefr))
+    if item_type:
+        query = query.filter(TestItem.item_type == item_type)
+    if excluded:
+        query = query.filter(TestItem.id.notin_(excluded))
+
+    candidates = query.all()
+    if not candidates:
+        return None, adjusted
+
+    scored = [
+        (item, compute_item_relevance(student_id, item.id, db_session))
+        for item in candidates
+    ]
+    best_item = max(scored, key=lambda x: x[1])[0]
+    return best_item, adjusted
